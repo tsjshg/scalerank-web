@@ -419,5 +419,12 @@ ui.colorMode.addEventListener("change", () => {
   if (r?.embedding) recolor(r);
 });
 ui.download.addEventListener("click", download);
+const help = $<HTMLDialogElement>("help");
+$("help-open").addEventListener("click", () => help.showModal());
+$("help-close").addEventListener("click", () => help.close());
+// a click on the backdrop (outside the dialog box) closes it
+help.addEventListener("click", (e) => {
+  if (e.target === help) help.close();
+});
 
 startWorker();

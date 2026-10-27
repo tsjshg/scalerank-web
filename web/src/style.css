@@ -40,7 +40,20 @@ h2 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase; letter-spacin
 .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--line); color: var(--ink); font-size: 11px; }
 
 .top { display: flex; align-items: baseline; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
-.tagline { margin: 0; color: var(--ink-2); }
+.tagline { margin: 0; color: var(--ink-2); flex: 1; }
+.help-button { padding: 5px 12px; }
+a { color: var(--accent); }
+dialog.help { width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+dialog.help::backdrop { background: rgba(0, 0, 0, 0.45); }
+.help-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+.help-head h2 { margin: 0; font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.help-body { padding: 4px 20px 18px; overflow-y: auto; max-height: calc(100vh - 110px); }
+.help-body h3 { font-size: 14px; margin: 18px 0 6px; }
+.help-body p, .help-body li, .help-body dd { color: var(--ink-2); }
+.help-body ul { padding-left: 20px; margin: 6px 0; }
+.help-body li { margin: 4px 0; }
+.help-body dt { font-weight: 600; margin-top: 8px; }
+.help-body dd { margin: 2px 0 0 0; }
 
 .layout { flex: 1; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
 .panel { overflow-y: auto; border-right: 1px solid var(--line); background: var(--surface); padding: 8px 0; }
