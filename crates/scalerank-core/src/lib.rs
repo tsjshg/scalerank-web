@@ -10,6 +10,7 @@ pub mod nndescent;
 pub mod par;
 pub mod pca;
 pub mod points;
+pub mod prep;
 pub mod ranks;
 pub mod rng;
 pub mod scalerank;

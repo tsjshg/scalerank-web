@@ -14,7 +14,8 @@
 UMAP は umap-learn、t-SNE は openTSNE の既定値と更新規則に合わせている。
 違いは、UMAP の初期化がスペクトルではなく PCA であることと、t-SNE に FFT 加速（openTSNE が 1 万点超で使う）がないこと。
 
-WASM 版と Web UI はこのあと追加する。
+| `crates/scalerank-wasm` | ブラウザ用の WASM バインディング（wasm-bindgen、単一スレッド、SIMD128） |
+| `web` | Web UI（Vite + TypeScript）。計算は Web Worker、描画は WebGL2 |
 
 ## 開発
 
@@ -22,4 +23,10 @@ WASM 版と Web UI はこのあと追加する。
 cargo test -p scalerank-core
 # drbench の環境に Python バインディングを入れる
 uv pip install --python ../madr/drbench/.venv/bin/python ./crates/scalerank-py
+
+# Web UI（wasm32-unknown-unknown ターゲットと wasm-bindgen-cli 0.2.129 が必要）
+cd web
+npm install
+npm run wasm   # crates/scalerank-wasm をビルドして web/src/wasm に出力
+npm run dev    # http://localhost:5173
 ```

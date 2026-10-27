@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Dimensionality reduction for tabular data that runs entirely in your browser." />
+    <title>ScaleRank</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>ScaleRank</h1>
+      <p class="tagline">Maps of tabular data, computed in your browser. Your data never leaves this page.</p>
+    </header>
+    <main class="layout">
+      <aside class="panel">
+        <section>
+          <h2><span class="step">1</span> Data</h2>
+          <label class="drop" id="drop">
+            <input type="file" id="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" />
+            <span><strong>Choose a CSV or TSV file</strong> or drop it here</span>
+          </label>
+          <button type="button" class="link" id="demo">Or try the demo data (6,000 points, 20 columns)</button>
+          <div id="data-summary" class="summary" hidden></div>
+          <div id="data-options" hidden>
+            <label class="field">Colour by
+              <select id="label-col"></select>
+            </label>
+            <label class="check"><input type="checkbox" id="standardize" checked /> Standardise columns</label>
+            <details id="features">
+              <summary>Columns used</summary>
+              <div id="feature-list" class="feature-list"></div>
+            </details>
+          </div>
+        </section>
+
+        <section id="embed-section" class="disabled">
+          <h2><span class="step">2</span> Map</h2>
+          <div class="field">
+            <div class="row-between"><span>Scale</span><output id="gamma-out">1.0</output></div>
+            <input type="range" id="gamma" min="0" max="2" step="0.1" value="1" />
+            <div class="row-between hint"><span>global layout</span><span>local neighbours</span></div>
+          </div>
+          <button type="button" class="primary" id="run-scalerank">Compute ScaleRank map</button>
+          <p class="hint">Also available, on request:</p>
+          <div class="row-gap">
+            <button type="button" id="run-umap">UMAP</button>
+            <button type="button" id="run-tsne">t-SNE</button>
+          </div>
+        </section>
+
+        <section id="progress-section" hidden>
+          <div class="progress"><div id="progress-bar"></div></div>
+          <div class="row-between">
+            <span id="status" class="hint"></span>
+            <button type="button" class="link" id="cancel">Cancel</button>
+          </div>
+        </section>
+
+        <section id="quality-section" hidden>
+          <h2><span class="step">3</span> Quality</h2>
+          <table class="quality">
+            <thead>
+              <tr>
+                <th>Map</th>
+                <th><span class="tip" tabindex="0" data-tip="How many of each point's 10 nearest neighbours in the data are also among its 10 nearest in the map (R_NX at K = 10). 0 = no better than a random map, 1 = all kept. Higher is better.">Neighbours</span></th>
+                <th><span class="tip" tabindex="0" data-tip="The same neighbour score averaged over every neighbourhood size, from the closest neighbour to the whole data set, with small sizes weighted more (log-scaled AUC of R_NX). 0 = random, 1 = perfect. Higher is better.">Scales</span></th>
+                <th><span class="tip" tabindex="0" data-tip="Rank correlation between distances in the data and distances in the map, over random pairs of points: is the global arrangement of groups kept? 1 = same order. Higher is better.">Distances</span></th>
+                <th><span class="tip" tabindex="0" data-tip="Time to compute the map in this browser, including the nearest-neighbour search on the first run. Lower is better.">Time</span></th>
+              </tr>
+            </thead>
+            <tbody id="quality-body"></tbody>
+          </table>
+          <p class="hint">Higher is better in every column but Time. No map wins every column: keeping local neighbours and the global layout pull against each other.</p>
+        </section>
+      </aside>
+
+      <section class="view">
+        <div class="view-bar">
+          <div id="tabs" class="tabs" role="tablist"></div>
+          <div class="row-gap">
+            <label class="field inline">Colour
+              <select id="color-mode">
+                <option value="label">by column</option>
+                <option value="overlap">neighbours kept</option>
+              </select>
+            </label>
+            <button type="button" id="download" disabled>Download CSV</button>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="plot"></canvas>
+          <div id="empty" class="empty">Load a table to start. Drag to pan, scroll to zoom, double-click to fit.</div>
+          <div id="legend" class="legend" hidden></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
