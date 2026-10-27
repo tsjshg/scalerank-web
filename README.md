@@ -4,6 +4,9 @@
 
 **Try it: <https://tsjshg.github.io/scalerank-web/>**
 
+Research notes on how the method came about, with the benchmark and the main experiments so far:
+<https://tsjshg.github.io/scalerank-web/docs/> ([日本語](https://tsjshg.github.io/scalerank-web/docs/ja.html))
+
 A dimensionality-reduction tool for tabular data that runs entirely in the
 browser. Files are read locally and nothing is uploaded. It is in development;
 the goal is 100,000 points.
@@ -80,4 +83,7 @@ npm run dev    # http://localhost:5173
 ```
 
 Every push to `main` builds the app and deploys it to GitHub Pages
-(`.github/workflows/pages.yml`).
+(`.github/workflows/pages.yml`). The research notes in `web/public/docs` are
+generated in [drbench](https://github.com/tsjshg/madr) by
+`scripts/build_overview.py --publish <path to web/public/docs>`, because they
+need drbench's results.

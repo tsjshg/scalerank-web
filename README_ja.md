@@ -4,6 +4,8 @@
 
 **公開ページ：<https://tsjshg.github.io/scalerank-web/>**
 
+研究ノート（手法ができるまでの経緯、ベンチマーク、これまでの主な実験）：<https://tsjshg.github.io/scalerank-web/docs/ja.html>（[English](https://tsjshg.github.io/scalerank-web/docs/)）
+
 ブラウザの中だけで動く、表形式データ向けの次元削減ツール（開発中）。
 ファイルは手元で読み込まれ、どこにも送信されない。目標は 10 万点。
 
@@ -71,3 +73,4 @@ npm run dev    # http://localhost:5173
 ```
 
 `main` に push するたびにアプリがビルドされ、GitHub Pages に公開される（`.github/workflows/pages.yml`）。
+`web/public/docs` の研究ノートは drbench の結果を使うので、[drbench](https://github.com/tsjshg/madr) 側で `scripts/build_overview.py --publish <web/public/docs のパス>` を実行して生成する。
