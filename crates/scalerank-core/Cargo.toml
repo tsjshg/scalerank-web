@@ -1,0 +1,14 @@
+[package]
+name = "scalerank-core"
+description = "ScaleRank dimensionality reduction: N^2-free rank structures and optimiser"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon"]
+
+[dependencies]
+rayon = { version = "1.12", optional = true }

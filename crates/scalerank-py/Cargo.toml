@@ -1,0 +1,17 @@
+[package]
+name = "scalerank-py"
+description = "Python bindings of scalerank-core, for validation against drbench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "scalerank_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+scalerank-core = { path = "../scalerank-core" }
+pyo3 = "0.30"
+numpy = "0.30"
