@@ -8,8 +8,11 @@
 
 | パス | 内容 |
 |---|---|
-| `crates/scalerank-core` | 本体（Rust、依存は任意の rayon のみ）。kNN、PCA、N² を使わない順位テーブル、ScaleRank の最適化 |
-| `crates/scalerank-py` | 検証用の Python バインディング（PyO3）。[drbench](https://github.com/tsjshg/madr) で Python の試作と比べる |
+| `crates/scalerank-core` | 本体（Rust、依存は任意の rayon のみ）。kNN（総当たり、NN-descent）、PCA、N² を使わない順位テーブル、ScaleRank、UMAP、t-SNE（Barnes-Hut）、評価指標 |
+| `crates/scalerank-py` | 検証用の Python バインディング（PyO3）。[drbench](https://github.com/tsjshg/madr) で Python の試作、umap-learn、openTSNE と比べる |
+
+UMAP は umap-learn、t-SNE は openTSNE の既定値と更新規則に合わせている。
+違いは、UMAP の初期化がスペクトルではなく PCA であることと、t-SNE に FFT 加速（openTSNE が 1 万点超で使う）がないこと。
 
 WASM 版と Web UI はこのあと追加する。
 

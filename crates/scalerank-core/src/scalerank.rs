@@ -12,6 +12,7 @@
 //!   candidates.  Pool landmarks get no gradient (`pool_stopgrad`), otherwise
 //!   a few landmarks would be dragged by a large share of the data.
 
+use crate::knn::{Knn, knn_exact};
 use crate::par;
 use crate::pca::pca;
 use crate::points::{Points, dist};
@@ -130,7 +131,14 @@ pub fn initial_layout(p: &Points, params: &Params, rng: &mut Rng) -> Vec<f64> {
 
 /// Runs ScaleRank.  `on_epoch` is called after every epoch; returning false
 /// stops early (the embedding so far is returned).
-pub fn fit(p: &Points, params: &Params, mut on_epoch: impl FnMut(&Progress) -> bool) -> Fit {
+pub fn fit(p: &Points, params: &Params, on_epoch: impl FnMut(&Progress) -> bool) -> Fit {
+    assert!(p.n >= 4, "need at least 4 points");
+    let knn = knn_exact(p, None, params.kmax.min(p.n - 2));
+    fit_with_knn(p, &knn, params, on_epoch)
+}
+
+/// [`fit`] with a precomputed kNN list (at least `min(kmax, n-2)` neighbours).
+pub fn fit_with_knn(p: &Points, knn: &Knn, params: &Params, mut on_epoch: impl FnMut(&Progress) -> bool) -> Fit {
     let n = p.n;
     let nc = params.n_components;
     assert!(n >= 4, "need at least 4 points");
@@ -146,7 +154,7 @@ pub fn fit(p: &Points, params: &Params, mut on_epoch: impl FnMut(&Progress) -> b
     }
     cdf.iter_mut().for_each(|c| *c /= acc);
     let r_pool = (kmax as f64).max(params.fresh_min * n as f64 / params.n_cand as f64);
-    let table = RankTable::build(p, kmax, r_pool, params.pool_ratio, params.pool_per_level, &mut rng);
+    let table = RankTable::build(p, knn, kmax, r_pool, params.pool_ratio, params.pool_per_level, &mut rng);
     let mut y = initial_layout(p, params, &mut rng);
 
     let ctx = Ctx { p, table: &table, cdf: &cdf, params, kmax, r_pool: r_pool as f32 };

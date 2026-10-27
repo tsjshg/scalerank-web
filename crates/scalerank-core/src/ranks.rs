@@ -39,10 +39,11 @@ struct Level {
 }
 
 impl RankTable {
-    pub fn build(p: &Points, kmax: usize, r_pool: f64, ratio: f64, per_level: usize, rng: &mut Rng) -> Self {
+    /// `knn` must hold at least `kmax` exact (or nearly exact) neighbours per point.
+    pub fn build(p: &Points, knn: &Knn, kmax: usize, r_pool: f64, ratio: f64, per_level: usize, rng: &mut Rng) -> Self {
         let n = p.n;
         assert!(n >= 3 && kmax >= 1 && kmax <= n - 2, "need 1 <= kmax <= n - 2");
-        let knn = knn_exact(p, None, kmax);
+        assert!(knn.k >= kmax, "kNN list shorter than kmax");
         let mut levels = Vec::new();
         let mut lo = kmax as f64;
         let n1 = (n - 1) as f64;
@@ -57,7 +58,7 @@ impl RankTable {
         }
         let far = farthest(p, rng);
 
-        let rows = par::map_collect(n, |i| row_entries(i, n, &knn, &levels, far[i], r_pool));
+        let rows = par::map_collect(n, |i| row_entries(i, n, knn, kmax, &levels, far[i], r_pool));
         let mut offsets = Vec::with_capacity(n + 1);
         offsets.push(0);
         let total: usize = rows.iter().map(|r| r.0.len()).sum();
@@ -106,8 +107,7 @@ impl RankTable {
 
 type Row = (Vec<u32>, Vec<f32>, Vec<f32>, Vec<f32>);
 
-fn row_entries(i: usize, n: usize, knn: &Knn, levels: &[Level], far: f32, r_pool: f64) -> Row {
-    let kmax = knn.k;
+fn row_entries(i: usize, n: usize, knn: &Knn, kmax: usize, levels: &[Level], far: f32, r_pool: f64) -> Row {
     let d_kmax = knn.dist(i)[kmax - 1];
     // (dist, rank, weight, id); kNN first, then levels in order (stable sort keeps ties so)
     let mut e: Vec<(f32, f64, f64, u32)> =
@@ -201,7 +201,7 @@ mod tests {
         let (n, d) = (1500, 5);
         let x: Vec<f32> = (0..n * d).map(|_| r.normal() as f32).collect();
         let p = Points::new(&x, n, d);
-        let t = RankTable::build(&p, 30, 200.0, 4.0, 16, &mut r);
+        let t = RankTable::build(&p, &knn_exact(&p, None, 40), 30, 200.0, 4.0, 16, &mut r);
         let mut err = Vec::new();
         for i in (0..n).step_by(37) {
             let mut ds: Vec<f32> = (0..n).filter(|&j| j != i).map(|j| sqdist(p.row(i), p.row(j)).sqrt()).collect();
