@@ -1,0 +1,1608 @@
+<title>MADR から ScaleRank へ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a research notebook. One readable column (44rem) for prose; figures break out to 68rem. Everything left-aligned. */
+:root {
+  --paper: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #161a21;
+  --ink-2: #464d5a;
+  --muted: #747b88;
+  --rule: #dcdfe5;
+  --grid: #e7e9ee;
+  --accent: #c2302f;          /* ScaleRank, the protagonist: text-safe red */
+  --accent-soft: #fbe9e8;
+  --seq: #86b6ef;             /* heat cells */
+  --code-bg: #eceef2;
+  --m-pca: #2a78d6; --m-tsne: #eb6834; --m-umap: #1baf7a; --m-densmap: #eda100;
+  --m-pacmap: #e87ba4; --m-mds: #008300; --m-trimap: #6250d6; --m-sr: #e34948; --m-random: #9a9893;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --c8: #e34948;
+  --good: #1f7a3d;
+  --f-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --col: 44rem;
+  --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
+    --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+    --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
+    --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --good: #5cc27d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
+  --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+  --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
+  --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  --good: #5cc27d;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 16.5px; line-height: 1.85;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 4rem;
+  -webkit-font-smoothing: antialiased;
+}
+main { display: grid; gap: 0; }
+.col { width: 100%; max-width: var(--col); margin-inline: auto; }
+.wide { width: 100%; max-width: var(--wide); margin-inline: auto; }
+.sr-only { position: absolute; left: -9999px; }
+
+header.top { padding-block: 3.5rem 2rem; border-bottom: 1px solid var(--rule); margin-bottom: 1rem; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(2.1rem, 5vw, 3.2rem); line-height: 1.25; margin: 0.4rem 0 1rem; text-wrap: balance; letter-spacing: 0.01em; }
+h1 .to { color: var(--accent); }
+.lede { font-size: 1.1rem; color: var(--ink-2); max-width: 40rem; margin: 0; }
+.meta { margin-top: 1.25rem; font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.meta a { color: var(--ink-2); }
+
+h2 { font-family: var(--f-display); font-weight: 800; font-size: 1.65rem; line-height: 1.4; margin: 0; text-wrap: balance; }
+h3 { font-size: 1.05rem; font-weight: 700; margin: 1.6rem 0 0.2rem; }
+section { padding-block: 2.8rem 0.5rem; display: grid; gap: 1.1rem; }
+.sec-head { display: grid; gap: 0.25rem; border-top: 2px solid var(--ink); padding-top: 0.9rem; }
+.sec-head.new { border-top-color: var(--accent); }
+.badge { display: inline-block; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.06em; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 0.5rem; margin-left: 0.5rem; vertical-align: middle; }
+p { margin: 0.7rem 0; }
+strong { font-weight: 700; }
+a { color: var(--accent); text-underline-offset: 2px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 4px; }
+.sr { color: var(--accent); font-weight: 700; }
+ul, ol { padding-left: 1.3rem; }
+li { margin: 0.25rem 0; }
+
+nav.toc { font-size: 0.92rem; }
+nav.toc ol { columns: 2 16rem; column-gap: 2rem; margin: 0.4rem 0 0; padding-left: 1.2rem; }
+nav.toc a { color: var(--ink-2); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); text-decoration: underline; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.summary > div { border-top: 1px solid var(--rule); padding-top: 0.7rem; min-width: 0; }
+.summary .k { font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.summary p { margin: 0.3rem 0 0; font-size: 0.97rem; }
+
+figure { margin: 0.6rem 0 0.4rem; display: grid; gap: 0.6rem; min-width: 0; }
+figure.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.1rem 0.9rem; }
+figcaption { font-size: 0.86rem; color: var(--ink-2); line-height: 1.7; }
+figcaption b { color: var(--ink); }
+.fig-sub { font-size: 0.82rem; color: var(--muted); }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font-family: var(--f-body); fill: var(--ink-2); }
+svg .tick text, svg .axis-label { font-size: 11px; fill: var(--muted); font-family: var(--f-mono); }
+svg .axis-title { font-size: 11.5px; fill: var(--ink-2); }
+svg .gridline { stroke: var(--grid); stroke-width: 1; }
+svg .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.82rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw.dot { width: 9px; height: 9px; border-radius: 50%; }
+.sw.ring { width: 9px; height: 9px; border-radius: 50%; background: transparent !important; border: 2px solid; }
+.sw.dash { background: none !important; border-top: 2px dashed; height: 0; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.75rem; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.9rem 1rem; }
+.grid-2 > *, .grid-4 > * { min-width: 0; }
+.mini-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin-bottom: 0.15rem; }
+.mini-sub { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { padding: 0.45rem 0.6rem; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; color: var(--ink-2); font-size: 0.8rem; white-space: nowrap; }
+td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.hl td { background: var(--accent-soft); }
+.heat td.cell { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.82rem; white-space: nowrap; }
+.heat td.best { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.heat th.sr-col { color: var(--accent); }
+.chip { display: inline-block; font-size: 0.72rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); white-space: nowrap; }
+.chip.local { border-color: var(--m-tsne); }
+.chip.global { border-color: var(--m-mds); }
+.chip.other { border-color: var(--muted); }
+
+.timeline { display: grid; gap: 0; border-left: 2px solid var(--rule); margin-left: 0.4rem; }
+.tl-item { position: relative; padding: 0 0 1.2rem 1.4rem; }
+.tl-item::before { content: ""; position: absolute; left: -7px; top: 0.55rem; width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 2px solid var(--ink-2); }
+.tl-item.now::before { background: var(--accent); border-color: var(--accent); }
+.tl-date { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); }
+.tl-title { font-weight: 700; }
+.tl-item p { margin: 0.15rem 0 0; font-size: 0.93rem; color: var(--ink-2); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.95rem; }
+.callout p { margin: 0.3rem 0; }
+.note { border-left: 3px solid var(--rule); padding: 0.2rem 0 0.2rem 1rem; color: var(--ink-2); font-size: 0.95rem; }
+.formula { font-family: var(--f-mono); font-size: 0.95rem; background: var(--code-bg); border-radius: 8px; padding: 0.7rem 1rem; overflow-x: auto; white-space: nowrap; }
+
+.pipeline { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: stretch; }
+.pipeline .stage { flex: 1 1 12rem; border: 1px solid var(--rule); border-radius: 10px; padding: 0.8rem 0.9rem; background: var(--panel); min-width: 0; }
+.pipeline .stage .k { font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.pipeline .stage .t { font-weight: 700; margin: 0.1rem 0 0.3rem; }
+.pipeline .stage p { margin: 0; font-size: 0.85rem; color: var(--ink-2); line-height: 1.65; }
+.pipeline .arrow { align-self: center; color: var(--muted); font-family: var(--f-mono); }
+
+.slider-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; font-size: 0.9rem; }
+.slider-row input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); }
+.big-readout { font-family: var(--f-mono); font-size: 0.95rem; color: var(--ink); }
+
+pre { background: var(--code-bg); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0.5rem 0; }
+pre code { background: none; padding: 0; }
+
+canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; touch-action: none; }
+
+.tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.65rem; font-size: 0.8rem; line-height: 1.55; box-shadow: 0 6px 20px rgba(0,0,0,0.12); max-width: 18rem; }
+.tip .row { display: flex; justify-content: space-between; gap: 0.8rem; align-items: center; }
+.tip .row .v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.tip .t { font-weight: 700; margin-bottom: 0.15rem; }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+
+@media (max-width: 560px) {
+  body { font-size: 15.5px; }
+  figure.panel { padding: 0.8rem 0.75rem 0.7rem; }
+  h2 { font-size: 1.4rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seg button { transition: background 0.15s, color 0.15s; }
+}
+</style>
+
+<main>
+<header class="top">
+  <div class="col">
+    <div class="eyebrow">研究ノート · 次元削減</div>
+    <h1>MADR から <span class="to">ScaleRank</span> へ</h1>
+    <p class="lede">2020年に始めたマルチエージェント型の次元削減（MADR）を見直し、比較の物差しを作り直したうえで、「守るスケールを指定できる順位保存」という新しい手法 ScaleRank を試作しました。最初の版で見つかった外れ点の問題を調べて損失関数をソフトマックス型に作り直し、N² を使わない版で 7 万点まで広げ、Rust と WebAssembly でブラウザアプリにするまでの経緯と結果を、図で説明します。</p>
+    <div class="meta">
+      <span>2026年11月20日時点</span>
+      <span>研究コード: <a href="https://github.com/tsjshg/scalerank-web/tree/main/research" target="_blank" rel="noopener">scalerank-web/research</a></span>
+      <span>ベンチマーク: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
+      <span>アプリ: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
+      <span><a href="index.html" hreflang="en" lang="en">English</a></span>
+    </div>
+  </div>
+</header>
+
+<section aria-labelledby="s-summary">
+  <div class="col">
+    <h2 id="s-summary" class="sr-only">要約</h2>
+    <div class="summary">
+      <div><div class="k">何をしたか</div><p>過去の試みを読み直し、8データ × 8手法を同じ指標で比べるベンチマーク基盤 <b>drbench</b> を作った。新手法を試作し、7 万点まで動く版とブラウザアプリにした。</p></div>
+      <div><div class="k">何が分かったか</div><p>既存手法には「局所に強い」か「大域に強い」かのトレードオフがあり、全スケールで勝つ手法はない。</p></div>
+      <div><div class="k">新手法</div><p><span class="sr">ScaleRank</span> は守りたいスケールを γ で指定する。現行のソフトマックス型（γ=1）は、8データすべてで局所と大域の両方で既存手法に負けない点を作った。パラメータを調整した t-SNE・UMAP（30 設定）も、両方で上回ることはなかった。</p></div>
+      <div><div class="k">残る課題</div><p>局所だけなら t-SNE がまだ上で、7 万点ではその差が広がる。外れ点が多い。個々の要素の多くは先行研究にあり、多重スケール t-SNE や DREAMS との比較が必要。</p></div>
+    </div>
+    <nav class="toc" aria-label="目次" style="margin-top:1.6rem">
+      <div class="eyebrow">目次</div>
+      <ol>
+        <li><a href="#history">これまでの経緯</a></li>
+        <li><a href="#qscore">2022年の結果をどう読むか</a></li>
+        <li><a href="#drbench">物差しを作る: drbench</a></li>
+        <li><a href="#baselines">既存手法の成績</a></li>
+        <li><a href="#idea">ScaleRank の考え方</a></li>
+        <li><a href="#proto">初期版でつまずいたこと</a></li>
+        <li><a href="#outliers">初期版の外れ点の正体</a></li>
+        <li><a href="#gap">blob で t-SNE に負ける理由</a></li>
+        <li><a href="#softmax">ソフトマックス型への切り替え</a></li>
+        <li><a href="#results">現行版の結果</a></li>
+        <li><a href="#tuned">調整した t-SNE・UMAP との比較</a></li>
+        <li><a href="#stability">地図はデータで決まっているか</a></li>
+        <li><a href="#prior">先行研究との位置づけ</a></li>
+        <li><a href="#scale">N² を使わない版と 7 万点</a></li>
+        <li><a href="#app">Rust 版とブラウザアプリ</a></li>
+        <li><a href="#caveats">割り引いて読むべき点と次の一手</a></li>
+        <li><a href="#repro">再現方法</a></li>
+      </ol>
+    </nav>
+  </div>
+</section>
+
+<!-- ============================================================ history -->
+<section id="history" aria-labelledby="h-history">
+  <div class="col sec-head"><span class="eyebrow">背景</span><h2 id="h-history">これまでの経緯</h2></div>
+  <div class="col">
+    <p>t-SNE や UMAP に代わる次元削減を作るため、2020年から「各データ点を1体のエージェントとみなし、局所的なルールで動かして配置を決める」という方向で実験してきました。フォルダには約40本のノートブックが残っていました。</p>
+    <div class="timeline" role="list">
+      <div class="tl-item" role="listitem"><div class="tl-date">2020年前半</div><div class="tl-title">粒子群（PSO）風</div><p>各点が速度を持ち、似た点に引かれ、似ていない点を避ける。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2020年夏〜秋</div><div class="tl-title">セルオートマトン型 MADR2d → 連続空間版</div><p>格子上で「近傍の一致度」を満足度として1マスずつ動く。その後、連続空間で「本来の近傍に寄る（harmonic）」「近傍でない点から逃げる（escape）」の2ルールに。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2021年初</div><div class="tl-title">局所密度で移動半径を変える（AROB 発表）</div><p>メモに「各インスタンスが何らかの目的関数を最適化するのがよいのでは」とある。ルールから目的関数への転換点。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2022年</div><div class="tl-title">co-ranking Q スコアを直接最適化</div><p>順位のずれを測る Q スコアを Rust で実装し、ランダムな30点ずつの移動を差分進化（DE）で最適化。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2026年10月26日</div><div class="tl-title">再始動: drbench と ScaleRank 初期版</div><p>物差しを先に作り、その上で三つ組の損失を使う ScaleRank を試作。外れ点の原因を調査。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2026年10月27日</div><div class="tl-title">ソフトマックス型へ</div><p>1つの近傍に対して非近傍を20個まとめて比べる損失に切り替え、既定値にした。</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2026年10月27日</div><div class="tl-title">7 万点とブラウザへ</div><p>N² の順位表をやめた版を作り、Rust で書き直して、データをブラウザの外に出さないアプリとして公開した。</p></div>
+      <div class="tl-item now" role="listitem"><div class="tl-date">2026年11月20日</div><div class="tl-title">地図はデータで決まっているか</div><p>seed と行の順番を変えて、地図がどれだけ変わるかを測った。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ qscore -->
+<section id="qscore" aria-labelledby="h-qscore">
+  <div class="col sec-head"><span class="eyebrow">過去の評価</span><h2 id="h-qscore">2022年の結果をどう読むか</h2></div>
+  <div class="col">
+    <p>2022年の最終結果では、MADR は Q スコアで他手法に大差をつけていました。ところが同じノートブックで、近い順位（k=5）だけに絞った局所スコアを見ると順位がほぼ逆転します。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">全体の Q スコア（低いほど良い）</div><div class="mini-sub">Pollen データ。全点対の順位のずれの合計</div><svg class="chart" id="fig-q-global" role="img" aria-label="全体のQスコアの棒グラフ"></svg></div>
+        <div><div class="mini-title">k=5 の局所スコア（低いほど良い）</div><div class="mini-sub">近い 5 位までの順位だけを見た場合</div><svg class="chart" id="fig-q-local" role="img" aria-label="k=5の局所スコアの棒グラフ"></svg></div>
+      </div>
+      <figcaption><b>図1.</b> 2022年の <code>結果まとめ.ipynb</code> の数値。MADR は全体では1位だが、局所では t-SNE・UMAP に大きく負ける。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>理由は Q スコアの定義にあります。Q スコアは「各点から見た他の全点の順位」が元の空間と埋め込みでどれだけずれたかの合計です。遠い順位のずれも近い順位のずれと同じ重さで数えるので、実質的には<strong>大域構造の指標</strong>になります。その指標を直接最適化すれば、その指標で勝つのは当然です。</p>
+    <div class="callout"><p><b>教訓:</b> 評価に使う指標を最適化対象にすると、その指標では必ず良く見える。新しい手法を作る前に、どの指標で何を測るかを固定しておく必要がある。</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ drbench -->
+<section id="drbench" aria-labelledby="h-drbench">
+  <div class="col sec-head"><span class="eyebrow">ベンチマーク</span><h2 id="h-drbench">物差しを作る: drbench</h2></div>
+  <div class="col">
+    <p>そこで新手法より先に、同じ条件で手法を比べる基盤 <b>drbench</b> を作りました。データセット・手法・指標をそれぞれ登録制にして、組み合わせを自動で回し、結果をキャッシュします。距離はすべてユークリッド距離で、既存手法も既定値のまま呼んでいます。</p>
+  </div>
+  <div class="wide">
+    <div class="pipeline" aria-label="drbench の処理の流れ">
+      <div class="stage"><div class="k">datasets</div><div class="t">8 データ</div><p>合成3種（S字曲面、階層クラスタ、密度の違うクラスタ）、digits、scRNA-seq 4種</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">methods</div><div class="t">8 手法 + 新手法</div><p>PCA, MDS, t-SNE, UMAP, densMAP, PaCMAP, TriMap, ランダム。関数を1つ登録すれば追加できる</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">metrics</div><div class="t">局所・大域・密度・ラベル</div><p>N×N 行列を作らず行ごとに集計。sklearn や旧実装と一致することをテストで確認</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">report</div><div class="t">図と表</div><p>R<sub>NX</sub>(K) 曲線、散布図、トレードオフ図、要約表</p></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>中心になる指標 R<sub>NX</sub>(K)</h3>
+    <p>各点について「元の空間での K 近傍」と「2次元での K 近傍」がどれだけ重なるかを測り、ランダム配置なら 0、完全に一致すれば 1 になるよう補正したものです。K を 1 から N まで動かすと、<strong>局所（小さい K）から大域（大きい K）まで</strong>の保存度を1本の曲線で見られます。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-rnx-concept" viewBox="0 0 640 210" role="img" aria-label="K近傍の一致を示す概念図"></svg>
+      <figcaption><b>図2.</b> 点 i の K=5 近傍。元の空間（左）での 5 点のうち 3 点が、2次元（右）でも 5 近傍に入っている。この一致率を全点で平均し、K ごとに曲線にしたものが R<sub>NX</sub>(K)。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>指標</th><th>種類</th><th>何を見ているか</th></tr></thead>
+        <tbody>
+          <tr><td><code>R_NX@10</code></td><td><span class="chip local">局所</span></td><td>K=10 での近傍保存（ランダム=0、完全=1）</td></tr>
+          <tr><td><code>AUC_RNX</code></td><td><span class="chip local">局所寄り</span></td><td>全 K の R<sub>NX</sub> を 1/K で重み付けした面積</td></tr>
+          <tr><td><code>trust@10</code> / <code>cont@10</code></td><td><span class="chip local">局所</span></td><td>偽の近傍が混ざっていないか / 本当の近傍を失っていないか</td></tr>
+          <tr><td><code>距離相関</code></td><td><span class="chip global">大域</span></td><td>全点対の距離の順位相関（Spearman）</td></tr>
+          <tr><td><code>密度相関</code></td><td><span class="chip other">密度</span></td><td>各点の 10-NN 半径（局所密度）が保たれているか</td></tr>
+          <tr><td><code>kNN 精度</code></td><td><span class="chip other">ラベル</span></td><td>2次元での 10-NN 分類精度。クラスの分かれ具合</td></tr>
+          <tr><td><code>外れ点の割合</code></td><td><span class="chip other">見た目</span></td><td>2次元での 10-NN 半径が中央値の 3 倍を超える点の割合</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col">
+    <div class="note"><p><b>途中で見つけた不具合.</b> PaCMAP と TriMap が近傍探索に使うライブラリ annoy が、この Mac では壊れていました。5 近傍を頼むと 1 つしか返さず、TriMap は<strong>エラーを出さずに</strong>ほぼランダムな結果を返していました（digits の kNN 精度 23%）。PaCMAP は faiss に切り替え、TriMap には正確な近傍を渡すよう直し、再発を検知するテストを追加しています。</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ baselines -->
+<section id="baselines" aria-labelledby="h-baselines">
+  <div class="col sec-head"><span class="eyebrow">既存手法</span><h2 id="h-baselines">既存手法の成績</h2></div>
+  <div class="col">
+    <p>R<sub>NX</sub>(K) 曲線を見ると、既存手法の得意なスケールがはっきり分かれます。t-SNE は小さい K で最も高く、K が 50 を超えたあたりで MDS や PCA に逆転されます。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">データ:</span><div class="seg" id="rnx-ds" role="group" aria-label="データセットの切り替え"></div></div>
+      <svg class="chart" id="fig-rnx" role="img" aria-label="R_NX(K)曲線"></svg>
+      <div class="legend" id="fig-rnx-legend"></div>
+      <figcaption><b>図3.</b> R<sub>NX</sub>(K)。横軸は対数で、右に行くほど大域的。グラフにカーソルを合わせると各手法の値が出ます。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>8 データ全体で見ても、局所指標と大域指標で1位の手法が入れ替わります。下の表で指標を切り替えると、局所では t-SNE、大域では MDS / PCA が強いことが分かります。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">指標:</span><div class="seg" id="heat-metric" role="group" aria-label="指標の切り替え"></div></div>
+      <div class="table-wrap"><table class="heat" id="heat-table"></table></div>
+      <figcaption><b>図4.</b> 3 seed の平均。各行で色が濃いほど良く、下線が行の最高値。右端の3列が ScaleRank（現行の γ=1 と γ=0、初期版の γ=1）。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ idea -->
+<section id="idea" aria-labelledby="h-idea">
+  <div class="col sec-head"><span class="eyebrow">新手法</span><h2 id="h-idea">ScaleRank の考え方</h2></div>
+  <div class="col">
+    <p>既存手法は「どのスケールを守るか」を内部に暗黙に持っています。ScaleRank はそれを<strong>ユーザーが指定する分布 p(K)</strong> として外に出し、その分布で重み付けした近傍保存を直接最適化します。</p>
+    <h3>1つの三つ組で考える</h3>
+    <p>点 i と近傍サイズ K を決めると、元の空間で i の上位 K 近傍に入る点 j と、入らない点 m があります。2次元で <b>j が m より i の近くにあれば正解</b>です。K を p(K) から引き、j と m を引き、間違っていれば i と j を近づけ、i と m を遠ざけます。初期版はこの三つ組を損失の単位にしていました。現行版では m を一度に20個引きます（後述）。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-triplet" viewBox="0 0 640 230" role="img" aria-label="三つ組の概念図"></svg>
+      <figcaption><b>図5.</b> 三つ組 (i, j, m)。元の空間での上位 K 近傍（点線の円）に入る j を i に引き寄せ、入らない m を遠ざける。どの K で引くかを p(K) が決める。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>ノブは γ</h3>
+    <p>p(K) を K<sup>−γ</sup> に比例させると、γ=1 では小さい K に重みが集まり（局所寄り、AUC_RNX と同じ重み）、γ=0 では全 K が同じ重み（大域寄り）になります。スライダーで γ を動かすと、どのスケールに力を割くかが変わります。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="slider-row">
+        <label for="gamma">γ</label>
+        <input type="range" id="gamma" min="0" max="2" step="0.1" value="1">
+        <span class="big-readout" id="gamma-readout"></span>
+      </div>
+      <svg class="chart" id="fig-profile" role="img" aria-label="スケール分布の棒グラフ"></svg>
+      <figcaption><b>図6.</b> digits（N=1797）で、各範囲の K に割り当てられる重みの割合。γ=1 と 1.5 の間で K≤10 の割合が 36% から 78% に跳ねる。棒にカーソルを合わせると値が出ます。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ proto -->
+<section id="proto" aria-labelledby="h-proto">
+  <div class="col sec-head"><span class="eyebrow">初期版</span><h2 id="h-proto">初期版でつまずいたこと</h2></div>
+  <div class="col">
+    <h3>最適化の失敗ではなく、代理指標の偏り</h3>
+    <p>最初の版は γ=1 でも局所指標が t-SNE に届きませんでした（digits の R<sub>NX</sub>@10 が 0.44 対 0.58）。そこで、既存手法の埋め込みを ScaleRank 自身の目的関数で採点しました。もし t-SNE の方が低い値なら最適化がうまくいっていないことになります。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">ScaleRank の目的関数で採点（γ=1、digits、低いほど良い）</div>
+      <svg class="chart" id="fig-objective" role="img" aria-label="目的関数による採点の棒グラフ"></svg>
+      <figcaption><b>図7.</b> 最初の版の ScaleRank が最も低い。つまり最適化は成功していて、この目的関数自体が t-SNE とは違う配置を好んでいる。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>原因は目的関数の作りでした。三つ組の正誤は「遠くの非近傍が少し順位を間違える」ことも同じ重さで数えますが、R<sub>NX</sub>(K) が気にするのは<strong>2次元の上位 K に入り込んでくる点</strong>だけです。そこで一部の三つ組で、m を「いま2次元で i の近くにいるが、本当は近傍でない点」から選ぶようにしました（hard negative）。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">R<sub>NX</sub>@10（digits）</div><svg class="chart" id="fig-hard-rnx" role="img" aria-label="hard negativeの効果 R_NX@10"></svg></div>
+        <div><div class="mini-title">AUC_RNX（digits）</div><svg class="chart" id="fig-hard-auc" role="img" aria-label="hard negativeの効果 AUC"></svg></div>
+      </div>
+      <figcaption><b>図8.</b> hard negative の導入で、局所指標が大きく改善した。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <div class="note"><p><b>もう1つのバグ.</b> 導入直後、hard negative の割合を 0.3 / 0.6 / 0.9 と変えても結果が<strong>完全に同じ</strong>でした。調べると、順位表を書き込む処理が NumPy のコピーに書き込んでいて、順位表が全部 0 のままでした。hard negative は一度も使われていなかったことになります。修正後に上の改善が出ました。</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ outliers -->
+<section id="outliers" aria-labelledby="h-outliers">
+  <div class="col sec-head"><span class="eyebrow">調査 1</span><h2 id="h-outliers">初期版の外れ点の正体</h2></div>
+  <div class="col">
+    <p>初期版の散布図では、クラスタのまわりに点が散っていました。2次元での 10-NN 半径が中央値の 3 倍を超える点を「外れ点」として数えると、t-SNE よりはるかに多く出ていました。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr);opacity:.45"></span>初期版 γ=1</span>
+        <span><span class="sw dot" style="background:var(--c7)"></span>初期版 + 緩和策（局所スケーリング）</span>
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>現行版 γ=1</span>
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE</span>
+        <span><span class="sw dot" style="background:var(--m-mds)"></span>MDS</span>
+      </div>
+      <svg class="chart" id="fig-outfrac" role="img" aria-label="外れ点の割合"></svg>
+      <figcaption><b>図9.</b> 外れ点の割合（3 seed 平均）。t-SNE はどのデータでも 1% 未満。MDS（距離をそのまま保つ手法）でも外れ点が出るデータは、本当に孤立した点を含んでいると考えられる。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>2 種類の外れ点</h3>
+    <ul>
+      <li><b>Pollen の外れ点</b>は元の空間でも孤立していました（10-NN 半径が中央値の 3.9 倍）。MDS でも 16% 出ます。これはある程度<strong>忠実</strong>です。</li>
+      <li><b>階層クラスタ（hier_blobs）の外れ点</b>は元の空間では普通の密度でした（1.06 倍）。手法が作った<strong>人工物</strong>です。</li>
+    </ul>
+    <h3>犯人は hard negative と「anti-hub」</h3>
+    <p>hard negative を切ると、hier_blobs の外れ点は 23% から 2% に減りました。外れる点には共通点があり、<strong>他のどの点の近傍リストにもほとんど入らない点</strong>、いわゆる anti-hub でした。高次元のデータでは、一部の点が多くの点の近傍になり（hub）、逆にほとんど誰の近傍にもならない点（anti-hub）が大量に生まれます。これを hubness と呼びます。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-hub" viewBox="0 0 640 220" role="img" aria-label="hubとanti-hubの概念図"></svg>
+      <figcaption><b>図10.</b> 矢印は「この点の最近傍はあの点」という関係。中央の hub は多くの点から指されるが、右端の anti-hub はどこからも指されない。近傍関係は対称ではない。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">表示:</span><div class="seg" id="hier-mode" role="group" aria-label="強調の切り替え"></div></div>
+      <div class="grid-4" id="fig-hier"></div>
+      <div class="legend" id="fig-hier-legend"></div>
+      <figcaption><b>図11.</b> hier_blobs（3 つの大クラスタ × 4 つの小クラスタ、50 次元）。色は大クラスタ。「anti-hub を強調」にすると、元の空間で 10-NN に 2 回以下しか現れない点を黒い輪で示す。初期版（左端）では anti-hub がクラスタの外に散っているが、現行版（3番目）ではほぼ収まっている。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">anti-hub が外れ点になる確率（初期版）</div>
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>hard negative あり（0.3）</span>
+        <span><span class="sw dot" style="background:var(--m-random)"></span>hard negative なし</span>
+      </div>
+      <svg class="chart" id="fig-antihub" role="img" aria-label="anti-hubが外れ点になる確率"></svg>
+      <figcaption><b>図12.</b> 各データの anti-hub（N10 ≤ 2）のうち外れ点になった割合。括弧内は hubness の強さ（N10 の歪度）。hubness が強いデータほど、hard negative の影響が大きい。Pollen は hard negative を切っても変わらない（本当に孤立した細胞のため）。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>どんな力が働いているか</h3>
+    <p>学習中に各点が受ける力を、勾配の項ごとに分解し、「自分のクラスタの中心から外向き」の成分を測りました（初期版、hier_blobs、エポック 700）。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>最終的に外れ点になる点</span>
+        <span><span class="sw dot" style="background:var(--c1)"></span>それ以外の点</span>
+      </div>
+      <svg class="chart" id="fig-forces" role="img" aria-label="力の分解"></svg>
+      <figcaption><b>図13.</b> 正の値は外向き、負の値は内向き。外れ点は「誰かの近傍として引かれる力」が約 1/3 しかなく、自分が anchor のときの hard negative による押し出しが約 2 倍。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>外れ点への正味の力は内向きですが、他の点より弱い（−0.013 対 −0.038）。学習の後半にクラスタの芯が縮んでいく（中心からの距離 3.5 → 0.6）中で、<strong>押し出されるというより取り残されて</strong>います。近傍関係が非対称なことが根本原因で、t-SNE は点ごとの帯域幅（perplexity の較正）でこれを打ち消しています。</p>
+    <h3>試した対策</h3>
+  </div>
+  <div class="wide">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>対策</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td>最適化手法の変更（点ごと Adam / 共有 Adam / SGD）</td><td>変化なし</td></tr>
+          <tr><td>hard positive（遠くにいる本当の近傍を優先して引く）</td><td>どのデータでも悪化</td></tr>
+          <tr><td>hard negative を順位で重み付け（trustworthiness と同じ形）</td><td>変化なし</td></tr>
+          <tr><td>片側 hard negative（入り込んだ点 m は動かさない）</td><td>わずかに減るだけ（23.8% → 20.4%）</td></tr>
+          <tr><td>hard negative を学習中に減衰させる</td><td>blob では減るが、digits の改善を失う</td></tr>
+          <tr><td>全 K で局所スケーリングした順位を使う</td><td>外れ点は消えるが、Pollen の距離相関が 0.86 → −0.02 に崩れる</td></tr>
+          <tr><td>小さい K（≤30）だけ局所スケーリング</td><td>外れ点 16% → 10〜11%。緩和にはなるが解決ではない（オプションとして残した）</td></tr>
+          <tr class="hl"><td><b>損失をソフトマックス型に変え、hard negative をやめる</b></td><td><b>外れ点 16% → 9%、局所も平均で改善。既定値にした（次々章）</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ gap -->
+<section id="gap" aria-labelledby="h-gap">
+  <div class="col sec-head"><span class="eyebrow">調査 2</span><h2 id="h-gap">blob で t-SNE に負ける理由</h2></div>
+  <div class="col">
+    <p>初期版で局所指標の差が大きかったのは、高次元ガウス分布でできた2つの合成データです（hier_blobs で 0.24 対 0.34、density_blobs で 0.31 対 0.41）。目的関数を K≈10 に集中させた版（帯域プロファイル）で、t-SNE と同じ土俵にそろえて調べました。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>データ</th><th>手法</th><th class="n">R<sub>NX</sub>@10</th><th class="n">目的関数（低いほど良い）</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3">hier_blobs</td><td>t-SNE</td><td class="n">0.344</td><td class="n">0.0364</td></tr>
+            <tr><td>ScaleRank（hard negative あり）</td><td class="n">0.233</td><td class="n">0.0425</td></tr>
+            <tr class="hl"><td>ScaleRank（hard なし、予算 4 倍）</td><td class="n">0.333</td><td class="n">0.0332</td></tr>
+            <tr><td rowspan="2">density_blobs</td><td>t-SNE</td><td class="n">0.408</td><td class="n">0.1019</td></tr>
+            <tr><td>ScaleRank（hard なし、予算 4 倍）</td><td class="n">0.327</td><td class="n">0.0839</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><b>表1.</b> 目的関数は K=10 前後に集中させた帯域プロファイル（k0=10）。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><b>hier_blobs:</b> hard negative があると、ScaleRank は<strong>自分の目的関数で t-SNE に負けます</strong>。hard negative が目的関数そのものを歪めているということです。外すと t-SNE にほぼ並び、目的関数でも上回りました。</li>
+      <li><b>density_blobs:</b> 目的関数では t-SNE を上回っているのに、R<sub>NX</sub>@10 では負けています。目的関数と評価指標のずれがまだ残っています。</li>
+      <li><b>スケールの配分:</b> γ=1 は設計上、K&gt;10 にも多くの重みを割きます（図6）。digits では K=10 に集中させると R<sub>NX</sub>@10 が 0.599 になり、t-SNE（0.583）を上回りました。</li>
+    </ul>
+    <div class="callout">
+      <p><b>hard negative のジレンマ.</b> digits のような多様体的なデータでは必須（R<sub>NX</sub>@10 が 0.44 → 0.54）ですが、hubness の強い高次元データでは外れ点を作り、目的関数を歪めます。固定の「確率 0.3・上位 2K 以内」という決め方が、データによって効いたり害になったりしていました。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ softmax (new) -->
+<section id="softmax" aria-labelledby="h-softmax">
+  <div class="col sec-head new"><span class="eyebrow">現行版</span><h2 id="h-softmax">ソフトマックス型への切り替え<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>hard negative をデータに合わせて調整するのではなく、損失関数の形で同じ効果を出せないかを考えました。1つの近傍 j に対して非近傍 m を Q 個まとめて引き、次の損失を使います（対照学習の InfoNCE と同じ形）。</p>
+    <div class="formula">損失 = −log( q<sub>ij</sub> / ( q<sub>ij</sub> + Σ<sub>m</sub> q<sub>im</sub> ) )　　q = 1 / (1 + d²)</div>
+    <ul>
+      <li><b>Q=1 のときは初期版の三つ組と同じ式</b>です（テストで一致を確認）。</li>
+      <li>Q を増やすと、<strong>いま2次元で i の近くにいる m ほど q<sub>im</sub> が大きく、押し出す力も大きくなります</strong>。m は一様に引くだけなのに、近くに入り込んでいる非近傍が自動的に強く効く、hard negative の滑らかな版になります。</li>
+      <li>Q を大きくするほど t-SNE に近づくことも知られています（Damrich ら 2023）。Q は γ と並ぶ、もう1つの「局所か大域か」のノブになります。</li>
+    </ul>
+    <h3>Q を振ってみる</h3>
+    <p>調整に使ってきた4データで、hard negative なしの状態から Q を 1 → 5 → 20 → 100 と増やしました。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend" id="fig-qsweep-legend"></div>
+      <div class="grid-2">
+        <div><div class="mini-title">局所 R<sub>NX</sub>@10（高いほど良い）</div><svg class="chart" id="fig-qsweep-rnx" role="img" aria-label="Qと局所指標"></svg></div>
+        <div><div class="mini-title">大域 距離相関（高いほど良い）</div><svg class="chart" id="fig-qsweep-sp" role="img" aria-label="Qと大域指標"></svg></div>
+      </div>
+      <figcaption><b>図14.</b> γ=1、hard negative なし、2 seed 平均。Q=1 は三つ組、Q=5・20 は1点あたり32グループ、Q=100 は4グループ。左端の × は初期版（三つ組 + hard negative）の値。局所は Q とともにほぼ単調に上がり、大域は少し下がる。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>Q=20 で1点あたり8グループにすると、32グループとほぼ同じ質を 1/4 の計算で出せました。これを<strong>現行の既定値</strong>（<code>n_neg=20, per_point=8, hard=0</code>）にしました。8 データ × 3 seed での比較が次の表です。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>手法</th><th class="n">外れ点</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">大域 距離相関</th><th class="n">密度相関</th><th class="n">時間</th></tr></thead>
+          <tbody id="mean-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表2.</b> 8 データ × 3 seed の平均（drbench の結果から計算）。外れ点は初期版の半分になり、局所も平均で上がった。大域は少し下がるが、t-SNE よりははるかに上。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>低次元の多様体では局所が下がる</h3>
+    <p>すべてのデータで良くなったわけではありません。s_curve（2次元の曲面を3次元に埋め込んだもの）では局所が 0.830 から 0.797 に下がりました。一様乱数の2次元正方形を復元させる単純なテストでも、同じ傾向がはっきり出ます。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">2次元の一様な正方形（300点）の復元、R<sub>NX</sub>@10</div>
+      <svg class="chart" id="fig-square" role="img" aria-label="2次元正方形の復元"></svg>
+      <figcaption><b>図15.</b> 2 seed 平均、ランダム初期化。現行版は学習を長くしても PCA 初期化にしても 0.80 前後で頭打ちになる。ソフトマックス型は hubness の強い高次元データには効くが、内在次元の低いデータでは少し損をする。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ results -->
+<section id="results" aria-labelledby="h-results">
+  <div class="col sec-head new"><span class="eyebrow">結果</span><h2 id="h-results">現行版の結果<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>現行版で γ = 1 / 0.5 / 0 を 8 データ × 3 seed で走らせ、既存7手法と比べました。縦軸に局所（R<sub>NX</sub>@10）、横軸に大域（距離相関）をとると、γ=1 と 0.5 は<strong>8データすべてで、両方の軸で上回る既存手法がない位置</strong>にあります。γ=0 は2つのデータで既存手法に負けました（density_blobs で PaCMAP、s_curve で TriMap）。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">ScaleRank:</span><div class="seg" id="trade-mode" role="group" aria-label="表示する版の切り替え"></div></div>
+      <div class="legend" id="fig-trade-legend"></div>
+      <div class="grid-4" id="fig-trade"></div>
+      <figcaption><b>図16.</b> 右上ほど良い。赤い実線は現行版で γ を 1 → 0.5 → 0 と動かしたときの軌跡、赤い破線（白抜き）は初期版。点にカーソルを合わせると値が出ます。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>γ を下げたときの振る舞い（新しい実験）</h3>
+    <p>8 データの平均で見ると、現行版は軌跡全体が<strong>局所寄りに移動</strong>しています。γ=1 では初期版より局所が高い一方、γ=0 まで下げても大域は初期版ほど上がりません（距離相関 0.863 対 0.906）。負例を多くすると t-SNE に近づく性質が、γ を下げても残るためと考えられます。また、どちらの版でも <strong>γ を下げるほど外れ点が増えます</strong>。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">8 データ平均のトレードオフ</div><svg class="chart" id="fig-mean-trade" role="img" aria-label="8データ平均のトレードオフ"></svg></div>
+        <div><div class="mini-title">γ と外れ点の割合（8 データ平均）</div><svg class="chart" id="fig-gamma-out" role="img" aria-label="γと外れ点"></svg></div>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--m-sr)"></span>現行版（ソフトマックス）</span>
+        <span><span class="sw dash" style="border-color:var(--m-sr)"></span>初期版（三つ組 + hard）</span>
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE</span>
+        <span><span class="sw dot" style="background:var(--m-mds)"></span>MDS</span>
+        <span><span class="sw dot" style="background:var(--m-pacmap)"></span>PaCMAP</span>
+      </div>
+      <figcaption><b>図17.</b> 左: 局所と大域の平均。現行版の軌跡は初期版より左上（局所寄り）にある。右: γ を下げると、どちらの版でも外れ点が増える。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">データ:</span><div class="seg" id="rnx2-ds" role="group" aria-label="データセットの切り替え"></div></div>
+      <svg class="chart" id="fig-rnx2" role="img" aria-label="ScaleRankのR_NX曲線"></svg>
+      <div class="legend" id="fig-rnx2-legend"></div>
+      <figcaption><b>図18.</b> R<sub>NX</sub>(K) 曲線で見た ScaleRank。γ=1 は小さい K で t-SNE に近く、大きい K では t-SNE を大きく上回る。γ=0 は MDS に近い形になる。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">Pollen での比較</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>手法</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">大域 距離相関</th><th class="n">AUC_RNX</th></tr></thead>
+          <tbody id="pollen-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表3.</b> ScaleRank γ=1 は局所で t-SNE に近く、大域では MDS 並み。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>散布図で見ると、t-SNE はクラスタをきれいに分けますがクラスタ同士の位置関係は保ちません。MDS は位置関係を保ちますがクラスタが重なります。ScaleRank はその中間で、クラスタを分けつつ配置も保とうとします。初期版で目立ったクラスタまわりの散らばりは、現行版では少なくなっています。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-4" id="fig-digits"></div>
+      <div class="legend" id="fig-digits-legend"></div>
+      <figcaption><b>図19.</b> digits（seed 0）。色は数字のクラスで、8 と 9 は三角形。点にカーソルを合わせるとクラスが出ます。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ tuned -->
+<section id="tuned" aria-labelledby="h-tuned">
+  <div class="col sec-head new"><span class="eyebrow">調査 3</span><h2 id="h-tuned">調整した t-SNE・UMAP との比較<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>既定値の t-SNE や UMAP に負けなくても、パラメータを調整すれば ScaleRank の位置まで届くかもしれません。そこで t-SNE は perplexity {5, 30, 100, 300} × exaggeration {1, 2, 4} とランダム初期化の 13 設定、UMAP は n_neighbors {5, 15, 50, 200} × min_dist {0, 0.1, 0.5, 0.99} とランダム初期化の 17 設定を、8 データ × 3 seed で走らせました。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE（13 設定）</span>
+        <span><span class="sw dot" style="background:var(--m-umap)"></span>UMAP（17 設定）</span>
+        <span><span class="sw" style="background:var(--m-sr)"></span>ScaleRank（γ=1, 0.5, 0）</span>
+      </div>
+      <div class="grid-4" id="fig-tuned"></div>
+      <figcaption><b>図20.</b> 右上ほど良い。小さな点が調整した t-SNE と UMAP の各設定、赤い線が ScaleRank で γ を 1 → 0.5 → 0 と動かしたときの軌跡。点にカーソルを合わせると設定名が出ます。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><strong>どのデータでも、30 設定のどれも、局所と大域の両方で ScaleRank を上回りませんでした。</strong>データごとに最良の設定を選んでも同じです。</li>
+      <li>t-SNE は perplexity を上げると大域が上がる（8 データ平均 0.52 → 0.71）代わりに局所が下がります（0.543 → 0.415）。exaggeration を上げると局所が大きく下がり、外れ点も増えます。</li>
+      <li>UMAP は n_neighbors を上げても大域が 0.43 前後で頭打ちになり、min_dist はほとんど効きません。</li>
+      <li>差が小さいのは s_curve と density_blobs で、調整した t-SNE が ScaleRank の近くまで来ます。</li>
+    </ul>
+    <div class="callout"><p><b>割り引いて読む点:</b> 大域の指標（距離の順位相関）は、ScaleRank が小さい γ で最適化している「各点から見た全点の順位」に近い量です。t-SNE と UMAP はもともと距離を保つ設計ではないので、大域での差の一部は設計目標の違いによります。局所と大域の両立を狙った手法（次の節）とはまだ比べていません。</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ stability -->
+<section id="stability" aria-labelledby="h-stability">
+  <div class="col sec-head new"><span class="eyebrow">調査 4</span><h2 id="h-stability">地図はデータで決まっているか<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>t-SNE や UMAP は、実行するたびに結果が変わることがあります。seed を固定すれば同じ図は出ますが、それは乱数を固定しただけです。行の順番を入れ替えるだけでも別の図になります。一方 PCA は、いつも同じ答えを返します。</p>
+    <p>そこで、同じデータの地図を seed を変えて（0, 1, 2）、また行の順番を変えて（3 通り）作り、地図どうしがどれだけ一致するかを 8 データで測りました。大域は 2 つの地図での距離の順位相関、局所は 10 近傍が一致する割合で見ます。どちらも 1 なら完全に同じです。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>手法</th><th class="n">大域・seed</th><th class="n">大域・行の順番</th><th class="n">局所・seed</th><th class="n">局所・行の順番</th></tr></thead>
+          <tbody id="stability-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表8.</b> 地図どうしの一致（8 データの平均）。大域は距離の順位相関、局所は 10 近傍の一致率。行の順番は一部の手法だけで測った（– は未測定）。ScaleRank は seed が元の版、行の順番が Rust 版の値。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>完全に同じになるのは PCA と MDS だけでした。drbench の MDS は古典 MDS（固有値分解）から始めるので、毎回同じ答えになります。</li>
+      <li>確率的な手法では、<strong>行の順番を変えると、seed を変えたのと同じくらい結果が変わります</strong>。seed を固定しても、行を並べ替えれば別の地図になります。</li>
+      <li>大域の配置は初期化でほぼ決まります。ランダム初期化では距離の順位相関が t-SNE で 0.71、UMAP で 0.49 まで下がります（Kobak &amp; Linderman 2021 と一致）。PCA から始める ScaleRank γ=1 は 0.98 で、非線形手法では TriMap と並んで最も安定しています。</li>
+      <li>局所は、どの手法でも各点の 10 近傍の 2〜5 割が実行ごとに入れ替わります。ScaleRank γ=1 は t-SNE と同じくらいで、UMAP、PaCMAP、TriMap よりは安定しています。</li>
+      <li>入れ替わる点は、データでの近傍も保てていない点と重なります。点ごとの「入れ替わりにくさ」と「近傍の保存」の順位相関は、t-SNE <span class="js-rho" data-m="tsne"></span>、UMAP（PCA 初期化）<span class="js-rho" data-m="umap:init=pca"></span>、ScaleRank γ=1 <span class="js-rho" data-m="scalerank:gamma=1.0"></span> でした。</li>
+      <li>γ=0 は不安定で、局所の一致は 0.6 前後、density_blobs では大域も 0.6 程度です。</li>
+    </ul>
+    <div class="callout"><p><b>含意:</b> 乱数を行番号ではなく点の値から作れば、行の順番にも依らない、完全に決定的な地図にできます。ただしそれは乱数の作り方を一つに決めただけで、局所の揺れがデータで決まるようになるわけではありません。主張できるのは「大域の配置はデータで決まる（seed にも行の順番にもほぼ依らない）。局所の揺れは測って地図に示す」という形だと考えています。</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ prior -->
+<section id="prior" aria-labelledby="h-prior">
+  <div class="col sec-head new"><span class="eyebrow">文献</span><h2 id="h-prior">先行研究との位置づけ<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>ScaleRank のどこまでが新しいかを確かめるため、関連する研究を調べました。結論から言うと、<strong>個々の要素の多くはすでに知られています</strong>。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ScaleRank の要素</th><th>先行研究</th></tr></thead>
+          <tbody>
+            <tr><td>局所と大域を 1 つのノブで動かす</td><td>NeRV の λ（Venna ら 2010）、Local MDS の τ（Chen &amp; Buja 2009）、t-SNE の exaggeration（Böhm ら 2022）、対比学習での負例の数（Damrich ら 2023）、DREAMS の λ（Kury ら 2026）</td></tr>
+            <tr><td>すべてのスケールを log K で一様に守る（γ=1 に相当）</td><td>多重スケール SNE（Lee ら 2015）、多重スケール t-SNE（de Bodt ら 2018, 2020）</td></tr>
+            <tr><td>距離ではなく順位を守る</td><td>非計量 MDS（Kruskal 1964）、RankVisu（Lespinats ら 2009）、順位保存による次元削減（Onclinx ら 2010）</td></tr>
+            <tr><td>三つ組の損失、InfoNCE と Cauchy 核</td><td>t-STE（van der Maaten &amp; Weinberger 2012）、TriMap（Amid &amp; Warmuth 2019）、Damrich ら 2023</td></tr>
+            <tr><td>評価指標 R<sub>NX</sub> とその対数スケールの AUC</td><td>Lee &amp; Verleysen 2009、Lee ら 2015</td></tr>
+            <tr><td>局所（近傍の再現率）と大域（距離の順位相関）の 2 軸で比べる</td><td>DREAMS（Kury, Kobak, Damrich; TMLR 2026）</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><b>表4.</b> ScaleRank の要素と、それを先に扱った研究。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>新しい可能性があるのは次の組み合わせです。利用者が任意のスケール分布 p(K) を与え、それで重み付けした近傍の保存を目的関数とし、そこからサンプリングの規則（K を p から引き、正例を上位 K から、負例をその外から引く）と三つ組の重みを導いていること。この組み合わせをそのまま述べた文献は見つかりませんでした。</p>
+    <p>ただし、多重スケール t-SNE のスケールの重みを p(K) に合わせて変えるのは素直な拡張です。それとの違いを実験で示せない限り、新しさは弱いと考えています。次に比べるべき相手は、p(K) で重みを変えた多重スケール t-SNE、DREAMS の λ の掃引、対比学習での負例の数の掃引です。</p>
+  </div>
+</section>
+
+<!-- ============================================================ scale -->
+<section id="scale" aria-labelledby="h-scale">
+  <div class="col sec-head new"><span class="eyebrow">規模</span><h2 id="h-scale">N² を使わない版と 7 万点<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>ここまでの ScaleRank は、各点から見た全点の順位表（N × N）を持っていたので、1 万点程度が限界でした。そこで順位表をやめ、O(N log N) の大きさの構造だけで同じ目的関数を最適化する版を作りました。</p>
+    <ul>
+      <li>1〜100 位は、正確な k 近傍で求める。</li>
+      <li>それより大きい順位は、何段階かのランダムな部分標本から推定する。大きさ n の部分標本で a 番目に近い点は、全体ではおよそ a·N/(n+1) 位にあたる。これで各点に「距離 → 順位」の表を作る。</li>
+      <li>負例は、エポックごとに一様に引き直した候補を表で順位付けし、順位が K を超えるものから選ぶ。</li>
+    </ul>
+    <p>8 データ × 3 seed で元の版と比べると、差はどの指標でもほぼ ±0.01 に収まりました（表5）。評価も、1 万点を超えるデータでは 2000 行だけを使って推定するようにしました。各指標は行ごとの値の平均なので、この推定に偏りはありません。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>γ</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">大域 距離相関</th><th class="n">密度相関</th><th class="n">kNN 精度</th></tr></thead>
+          <tbody id="fast-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表5.</b> N² を使わない版 − 元の版（8 データ × 3 seed の平均）。0 に近いほど元の版と同じ。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>MNIST と Fashion-MNIST の全 7 万点（PCA で 50 次元）で試した結果が表6と図21です。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">データ:</span><div class="seg" id="big-ds" role="group" aria-label="データセットの切り替え"></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>手法</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">大域 距離相関</th><th class="n">密度相関</th><th class="n">kNN 精度</th><th class="n">時間</th></tr></thead>
+          <tbody id="big-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表6.</b> 7 万点（seed 0、10 スレッド）。t-SNE は openTSNE、UMAP は umap-learn。ScaleRank は Rust 版の値で、Python 版とほぼ同じ。</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-4" id="fig-big"></div>
+      <div class="legend" id="fig-big-legend"></div>
+      <figcaption><b>図21.</b> MNIST 7 万点のうちランダムな 5000 点。色は数字のクラスで、8 と 9 は三角形。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>大域（距離相関）は、ScaleRank が t-SNE や UMAP よりはっきり高くなりました。</li>
+      <li>一方、局所（R<sub>NX</sub>@10）は N が大きくなると弱くなります。MNIST の γ=1 では 1 万点で 0.27 だったのが 7 万点で 0.10 になり、t-SNE（0.39）の約 4 分の 1、UMAP と同じくらいです。</li>
+    </ul>
+    <p>図21 では、ScaleRank γ=1（neg_scale 0.5）は数字ごとのまとまりを保つものの、各クラスが小さな塊に分かれ、周りに散らばる点も多くなっています。γ=0 は全体の配置を保つ代わりに、クラスが重なります。</p>
+    <h3>局所が N とともに弱くなる理由</h3>
+    <p>負例の数 Q を固定したまま N を大きくすると、Q 個の負例が代表する「それ以外のすべての点」が増え、反発が相対的に弱まります。対比学習で知られている性質で（Damrich ら 2023）、負例を少なく引く UMAP に近い振る舞いになります。</p>
+    <p>そこで、負例の項に重み w = ((N−1−K)/Q)<sup>a</sup> をかける設定（neg_scale = a）を入れました。a = 0.5 で局所はほぼ 2 倍（MNIST 0.10 → 0.20、Fashion-MNIST 0.12 → 0.20）になりますが、t-SNE にはまだ届きません。小さいデータでは密度相関が下がる（digits で 0.66 → 0.48）ので、既定値にはしていません。</p>
+    <p>MNIST の 1 万点では、ほかの設定も試しました。γ を上げると局所は最大 0.36（γ=2）、負例を 100 個にすると 0.35、neg_scale 0.5 で 0.36 になりました（既定の γ=1 は 0.28、t-SNE は 0.45）。1 点あたりの組の数を 4 倍にしたり、エポックを 800 から 2000 に増やしたりしても、ほとんど変わりませんでした（0.29）。</p>
+  </div>
+</section>
+
+<!-- ============================================================ app -->
+<section id="app" aria-labelledby="h-app">
+  <div class="col sec-head new"><span class="eyebrow">実装</span><h2 id="h-app">Rust 版とブラウザアプリ<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>データをブラウザの外に出さずに使えるように、ScaleRank を Rust で書き直し、WebAssembly でブラウザ上で動くアプリにしました。比較用に t-SNE と UMAP も同じ Rust のコードに入れ、利用者が指示したときだけ計算します。近似 k 近傍（NN-descent）も実装しましたが、50 次元・7 万点では総当たり（10 スレッドで 4.3 秒）より速くならなかったので、今は総当たりを使っています。</p>
+    <div class="callout"><p><b>アプリ:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a>（コード: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>）</p></div>
+    <p>Rust 版が参照実装と同じものを計算していることを、drbench で確かめました（表7）。t-SNE は openTSNE、UMAP は umap-learn（PCA 初期化）、ScaleRank は Python 版と比べています。</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rust 版</th><th>比較相手</th><th class="n">局所 R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">大域 距離相関</th><th class="n">密度相関</th><th class="n">kNN 精度</th><th class="n">時間（Rust / 相手）</th></tr></thead>
+          <tbody id="ports-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>表7.</b> Rust 版 − 比較相手（8 データ × 3 seed の平均）。0 に近いほど同じ結果。</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>7 万点でも同じで、t-SNE の R<sub>NX</sub>@10 は 0.386（openTSNE 0.391）、UMAP は 0.108（umap-learn 0.109）でした。10 スレッドでの計算時間は、t-SNE が 28 秒（openTSNE 64 秒）、UMAP が 22 秒（35 秒）、ScaleRank が 44 秒（Python 版 1347 秒）です。</p>
+    <p>ブラウザ版は今のところ単一スレッドで、6000 点なら ScaleRank 17 秒、UMAP 11 秒、t-SNE 7 秒ほどです。2 万点では ScaleRank に約 1 分かかるので、マルチスレッド化で短くする予定です。</p>
+  </div>
+</section>
+
+<!-- ============================================================ caveats -->
+<section id="caveats" aria-labelledby="h-caveats">
+  <div class="col sec-head"><span class="eyebrow">まとめ</span><h2 id="h-caveats">割り引いて読むべき点と次の一手</h2></div>
+  <div class="col">
+    <h3>割り引いて読むべき点</h3>
+    <ul>
+      <li>局所指標だけなら、t-SNE が全データで1位のまま（平均 0.543 対 現行版 0.511）。</li>
+      <li>現行版は低次元の多様体（s_curve、2次元の正方形）で局所が初期版より下がる。</li>
+      <li>γ を下げて大域寄りにすると、外れ点が増え、初期版ほど大域に届かない。</li>
+      <li>外れ点はまだ t-SNE（0.3%）よりずっと多い（8.8%）。一部は本当に孤立した点だが、全部ではない。</li>
+      <li>AUC_RNX は γ=1 の目的関数に近いものを測っているので、そこでの優位は割り引く必要がある。R<sub>NX</sub>@10 と距離相関は直接は最適化していない。</li>
+      <li>ハイパーパラメータは digits、Pollen、hier_blobs、density_blobs で調整した。調整に使っていない4データでも傾向は同じだった。</li>
+      <li>7 万点では局所が t-SNE の約 4 分の 1 まで下がる。neg_scale で約 2 倍になるが、まだ届かない。</li>
+      <li>個々の要素の多くは先行研究にある。p(K) で重みを変えた多重スケール t-SNE や DREAMS とはまだ比べていない。</li>
+      <li>ブラウザ版は単一スレッドで、2 万点の ScaleRank に約 1 分かかる。</li>
+    </ul>
+    <h3>次の一手の候補</h3>
+    <ul>
+      <li><b>2次元での順位を直接推定する.</b> 負例を Q 個引けば「2次元で j より近い非近傍の割合」から j の順位を推定できる。それが K を超えたときだけ罰すれば、R<sub>NX</sub>(K) をほぼそのまま最適化できる。</li>
+      <li><b>Q を K に合わせて変える.</b> 大域寄り（大きい K）では Q を減らし、局所寄りでは増やす。γ を下げたときに大域へ届かない問題に効く可能性がある。</li>
+      <li><b>正例側の非対称性を直す.</b> t-SNE のように点ごとの帯域で「近傍として引かれる量」をならし、anti-hub にも十分な引力を与える。</li>
+      <li><b>大きい N で局所を保つ.</b> neg_scale の既定値を N に合わせて決める。t-SNE の early exaggeration にあたる段階を試す。</li>
+      <li><b>先行研究と直接比べる.</b> p(K) で重みを変えた多重スケール t-SNE、DREAMS の λ の掃引、対比学習での負例の数の掃引を drbench に入れる。</li>
+      <li><b>ブラウザで速くする.</b> マルチスレッド化と SIMD で 10 万点を目指す。t-SNE には FFT 版を入れる。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ repro -->
+<section id="repro" aria-labelledby="h-repro">
+  <div class="col sec-head"><span class="eyebrow">付録</span><h2 id="h-repro">再現方法</h2></div>
+  <div class="col">
+    <p>ベンチマーク <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> と、<a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> の <code>research/</code>（ScaleRank の Python 版と研究用スクリプト）を並べて置き、次のコマンドで再現できます。2020年の元データの pickle は drbench の親フォルダにある前提です。2026年11月までの作業は drbench の <code>proto/scalerank</code> ブランチ（タグ <code>scalerank-prototype-2026-11</code>）で行いました。</p>
+<pre><code>git clone https://github.com/tsjshg/drbench
+git clone https://github.com/tsjshg/scalerank-web
+cd drbench
+uv sync
+uv pip install -e ../scalerank-web/research           # ScaleRank を drbench の手法として登録
+uv pip install ../scalerank-web/crates/scalerank-py   # Rust 版（scalerank_rs, tsne_rs, umap_rs）
+R=../scalerank-web/research/scripts
+
+uv run python scripts/convert_legacy.py      # 2020年の pickle → data/raw/*.npz
+uv run drbench run                           # 既存手法（8データ × 3 seed）
+
+# 現行版（ソフトマックス型、既定値）
+uv run drbench run -m scalerank:gamma=1.0 scalerank:gamma=0.5 scalerank:gamma=0.0
+# 初期版（三つ組 + hard negative）
+uv run drbench run -m "scalerank:gamma=1.0,hard=0.3,n_neg=1,per_point=32"
+uv run drbench report                        # results/report/ に図と表
+
+# 調査用スクリプト
+uv run python $R/sweep_scalerank.py -d digits --grid n_neg=1,5,20 hard=0.0
+uv run python $R/score_under_objective.py digits --gammas 1
+uv run python $R/diagnose_outliers.py hier_blobs -m tsne "scalerank:gamma=1.0"
+uv run python $R/force_decomposition.py hier_blobs --epochs 700
+uv run python $R/plot_scale_profile.py
+
+# 調整した t-SNE / UMAP との比較（30 設定 × 8 データ × 3 seed の drbench run の後）
+uv run python $R/compare_tuned_baselines.py
+
+# N² を使わない版、Rust 版
+uv run drbench run -m scalerank_fast:gamma=1.0 scalerank_fast:gamma=0.5 scalerank_fast:gamma=0.0
+uv run drbench run -m scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 tsne_rs umap_rs umap:init=pca
+uv run python $R/compare_fast.py
+uv run python $R/compare_rs.py
+uv run drbench run -d mnist70k fmnist70k -s 0 -m tsne umap scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 "scalerank_rs:gamma=1.0,neg_scale=0.5"
+
+# seed と行の順番に対する安定性（drbench のスクリプトに ScaleRank を足して）
+uv run python scripts/stability.py \
+  --seed-methods pca mds tsne tsne:initialization=random tsne_rs umap umap:init=pca umap:init=random umap_rs densmap pacmap trimap \
+                 scalerank:gamma=1.0 scalerank:gamma=0.5 scalerank:gamma=0.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
+  --order-methods pca tsne tsne_rs umap umap:init=pca umap_rs scalerank:gamma=1.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
+  --point-methods tsne umap:init=pca scalerank:gamma=1.0 scalerank:gamma=0.0
+
+# このページ（scalerank-web の web/public/docs に書き出す）
+uv run python $R/build_overview.py</code></pre>
+    <p>Rust 版とアプリのコードも <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a> にあります。</p>
+  </div>
+</section>
+
+<footer class="col">このページは scalerank-web の <code>research/scripts/build_overview.py</code> で drbench の結果から生成しています。数値は 2026年11月20日時点のものです。</footer>
+</main>
+
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---------------------------------------------------------------- helpers
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs = {}) { const t = el('text', { x, y, ...attrs }, parent); t.textContent = s; return t; }
+const lin = (d0, d1, r0, r1) => v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
+const logs = (d0, d1, r0, r1) => v => r0 + (Math.log(v) - Math.log(d0)) / (Math.log(d1) - Math.log(d0)) * (r1 - r0);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmt = (v, d = 3) => (v == null || Number.isNaN(v)) ? '–' : v.toFixed(d);
+const pct = v => (v == null) ? '–' : (v * 100).toFixed(1) + '%';
+const mean = a => { const b = a.filter(v => v != null); return b.length ? b.reduce((s, v) => s + v, 0) / b.length : null; };
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y + 14;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top + h > innerHeight - 8) top = y - h - 14;
+  tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+}
+function hideTip() { tip.hidden = true; }
+const row = (label, v, color) => `<div class="row"><span>${color ? `<span class="sw dot" style="background:${color};margin-right:6px"></span>` : ''}${label}</span><span class="v">${v}</span></div>`;
+function hover(target, html) {
+  target.addEventListener('pointermove', e => showTip(typeof html === 'function' ? html() : html, e.clientX, e.clientY));
+  target.addEventListener('pointerleave', hideTip);
+}
+
+const M = {
+  pca: { name: 'PCA', c: 'var(--m-pca)' }, mds: { name: 'MDS', c: 'var(--m-mds)' }, tsne: { name: 't-SNE', c: 'var(--m-tsne)' },
+  umap: { name: 'UMAP', c: 'var(--m-umap)' }, densmap: { name: 'densMAP', c: 'var(--m-densmap)' }, pacmap: { name: 'PaCMAP', c: 'var(--m-pacmap)' },
+  trimap: { name: 'TriMap', c: 'var(--m-trimap)' }, random: { name: 'ランダム', c: 'var(--m-random)' },
+  'sr:1.0': { name: 'ScaleRank γ=1', c: 'var(--m-sr)', sr: true, dash: '' },
+  'sr:0.5': { name: 'ScaleRank γ=0.5', c: 'var(--m-sr)', sr: true, dash: '' },
+  'sr:0.0': { name: 'ScaleRank γ=0', c: 'var(--m-sr)', sr: true, dash: '2 3' },
+  'v1:1.0': { name: '初期版 γ=1', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:0.5': { name: '初期版 γ=0.5', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:0.0': { name: '初期版 γ=0', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:nohard': { name: '初期版 hard なし', c: 'var(--m-sr)', sr: true, v1: true },
+  'q100': { name: 'ScaleRank Q=100', c: 'var(--m-sr)', sr: true },
+};
+const BASE = ['pca', 'mds', 'tsne', 'umap', 'densmap', 'pacmap', 'trimap'];
+const SRK = ['sr:1.0', 'sr:0.5', 'sr:0.0'];
+const V1K = ['v1:1.0', 'v1:0.5', 'v1:0.0'];
+const DSN = {
+  s_curve: 'S字曲面', hier_blobs: '階層クラスタ', density_blobs: '密度の違うクラスタ', digits: '手書き数字 digits',
+  pollen: 'Pollen', usoskin: 'Usoskin', kolodziejczyk: 'Kolodziejczyk', buettner: 'Buettner',
+};
+const ORDER = ['s_curve', 'hier_blobs', 'density_blobs', 'digits', 'pollen', 'usoskin', 'kolodziejczyk', 'buettner'];
+const avg = (key, metric) => mean(ORDER.map(ds => D.summary[ds][key] ? D.summary[ds][key][metric] : null));
+const avgOut = key => mean(ORDER.map(ds => D.outfrac[ds][key]));
+
+function segmented(container, options, initial, onChange) {
+  container.innerHTML = '';
+  const btns = options.map(([value, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.dataset.value = value;
+    b.setAttribute('aria-pressed', value === initial ? 'true' : 'false');
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); onChange(value); });
+    container.appendChild(b); return b;
+  });
+}
+
+// Horizontal bar chart. rows: [{label, value, color, bold, tipHtml}]
+function hbars(svg, rows, { max, fmtv = v => fmt(v), labelW = 120, rowH = 26, width = 640 } = {}) {
+  svg.innerHTML = '';
+  const H = rows.length * rowH + 24;
+  svg.setAttribute('viewBox', `0 0 ${width} ${H}`);
+  const x = lin(0, max, labelW, width - 64);
+  niceTicks(0, max, 4).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 20, class: 'gridline' }, svg); txt(svg, x(t), H - 6, fmtv(t), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  rows.forEach((r, i) => {
+    const y = i * rowH + 4;
+    txt(svg, labelW - 8, y + rowH / 2 + 1, r.label, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: `font-size:12px;${r.bold ? 'font-weight:700;fill:var(--ink)' : ''}` });
+    const w = Math.max(1, x(r.value) - labelW);
+    el('rect', { x: labelW, y: y + 5, width: w, height: rowH - 10, rx: 3, style: `fill:${r.color};${r.faint ? 'opacity:.45' : ''}` }, svg);
+    txt(svg, labelW + w + 6, y + rowH / 2 + 1, fmtv(r.value), { class: 'axis-label', 'dominant-baseline': 'middle', style: 'font-size:11px;fill:var(--ink-2)' });
+    hover(el('rect', { x: 0, y, width, height: rowH, fill: 'transparent' }, svg), r.tipHtml || `<div class="t">${r.label}</div>${fmtv(r.value)}`);
+  });
+}
+
+// Grouped horizontal bars: groups [{label, bars:[{value,color,name,faint}]}]
+function groupedBars(svg, groups, { max, fmtv = pct, labelW = 130, barH = 10, gap = 3, pad = 12, width = 640 } = {}) {
+  svg.innerHTML = '';
+  const nb = groups[0].bars.length, gh = nb * (barH + gap) + pad, H = groups.length * gh + 26;
+  svg.setAttribute('viewBox', `0 0 ${width} ${H}`);
+  const x = lin(0, max, labelW, width - 56);
+  niceTicks(0, max, 6).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 22, class: 'gridline' }, svg); txt(svg, x(t), H - 6, fmtv(t).replace('.0%', '%'), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  groups.forEach((g, gi) => {
+    const y0 = gi * gh + 4;
+    txt(svg, labelW - 8, y0 + (gh - pad) / 2 + 2, g.label, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: 'font-size:12px' });
+    g.bars.forEach((b, bi) => {
+      const v = b.value ?? 0, y = y0 + bi * (barH + gap);
+      el('rect', { x: labelW, y, width: Math.max(1.5, x(Math.min(v, max)) - labelW), height: barH, rx: 2, style: `fill:${b.color};${b.faint ? 'opacity:.45' : ''}` }, svg);
+      txt(svg, Math.max(labelW, x(Math.min(v, max))) + 5, y + barH - 1.5, b.value == null ? '–' : fmtv(v), { class: 'axis-label', style: 'font-size:9.5px' });
+    });
+    hover(el('rect', { x: 0, y: y0 - 2, width, height: gh, fill: 'transparent' }, svg),
+      `<div class="t">${g.label}</div>` + g.bars.map(b => row(b.name, b.value == null ? '–' : fmtv(b.value), b.color)).join(''));
+  });
+}
+
+// ---------------------------------------------------------------- fig 1: 2022 Q scores
+hbars(document.getElementById('fig-q-global'), [
+  { label: 'MADR', value: 7735, color: 'var(--m-sr)', bold: true },
+  { label: 'MDS', value: 14741, color: 'var(--m-mds)' },
+  { label: 'PCA', value: 15697, color: 'var(--m-pca)' },
+  { label: 't-SNE', value: 19370, color: 'var(--m-tsne)' },
+  { label: 'UMAP', value: 25547, color: 'var(--m-umap)' },
+], { max: 28000, fmtv: v => Math.round(v).toLocaleString('ja-JP'), labelW: 70, width: 400 });
+hbars(document.getElementById('fig-q-local'), [
+  { label: 'MDS', value: 0.0812, color: 'var(--m-mds)' },
+  { label: 'PCA', value: 0.0437, color: 'var(--m-pca)' },
+  { label: 'MADR', value: 0.0400, color: 'var(--m-sr)', bold: true },
+  { label: 'UMAP', value: 0.0140, color: 'var(--m-umap)' },
+  { label: 't-SNE', value: 0.0078, color: 'var(--m-tsne)' },
+], { max: 0.09, fmtv: v => v.toFixed(3), labelW: 70, width: 400 });
+
+// ---------------------------------------------------------------- fig 2: R_NX concept
+(function () {
+  const svg = document.getElementById('fig-rnx-concept');
+  const panels = [
+    { x0: 20, title: '元の空間（高次元）', nbr: [1, 2, 3, 4, 5], pts: [[150, 110], [118, 82], [182, 92], [128, 140], [176, 136], [150, 64], [92, 112], [212, 120], [100, 170], [214, 170], [60, 70], [240, 66]] },
+    { x0: 340, title: '2次元の埋め込み', nbr: [1, 2, 4, 6, 7], pts: [[150, 110], [124, 90], [176, 96], [214, 168], [132, 136], [96, 168], [170, 140], [116, 116], [240, 72], [60, 72], [196, 60], [64, 150]] },
+  ];
+  const shared = [1, 2, 4];
+  panels.forEach(p => {
+    const g = el('g', { transform: `translate(${p.x0},0)` }, svg);
+    el('rect', { x: 0, y: 26, width: 280, height: 176, rx: 8, fill: 'none', style: 'stroke:var(--rule)' }, g);
+    txt(g, 12, 18, p.title, { style: 'font-size:12.5px;font-weight:700;fill:var(--ink)' });
+    const c = p.pts[0];
+    const r = Math.max(...p.nbr.map(k => Math.hypot(p.pts[k][0] - c[0], p.pts[k][1] - c[1]))) + 10;
+    el('circle', { cx: c[0], cy: c[1], r, fill: 'none', style: 'stroke:var(--muted);stroke-dasharray:4 3' }, g);
+    p.pts.forEach((pt, k) => {
+      if (k === 0) return;
+      const inN = p.nbr.includes(k), sh = shared.includes(k);
+      el('circle', { cx: pt[0], cy: pt[1], r: 6.5, style: `fill:${sh ? 'var(--m-sr)' : inN ? 'var(--panel)' : 'var(--rule)'};stroke:${inN ? 'var(--m-sr)' : 'var(--muted)'};stroke-width:1.6` }, g);
+      txt(g, pt[0], pt[1] + 3.5, String(k), { 'text-anchor': 'middle', style: `font-size:9px;font-family:var(--f-mono);fill:${sh ? 'var(--panel)' : 'var(--ink-2)'}` });
+    });
+    el('circle', { cx: c[0], cy: c[1], r: 8, style: 'fill:var(--ink)' }, g);
+    txt(g, c[0], c[1] + 3.5, 'i', { 'text-anchor': 'middle', style: 'font-size:10px;font-weight:700;fill:var(--paper)' });
+  });
+  txt(svg, 320, 118, '→', { 'text-anchor': 'middle', style: 'font-size:20px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- R_NX curve chart (figs 3, 18)
+function rnxChart(svgId, legendId, ds, methods) {
+  const svg = document.getElementById(svgId), legend = document.getElementById(legendId);
+  svg.innerHTML = ''; legend.innerHTML = '';
+  const W = 640, H = 330, m = { l: 46, r: 14, t: 12, b: 44 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const C = D.curves[ds], series = methods.filter(k => C[k]);
+  const kmax = Math.max(...series.map(k => C[k].k[C[k].k.length - 1]));
+  let ylo = Math.min(...series.flatMap(k => C[k].r)), yhi = Math.max(...series.flatMap(k => C[k].r));
+  ylo = Math.min(0, Math.floor(ylo * 10) / 10); yhi = Math.ceil(yhi * 10) / 10;
+  const x = logs(1, kmax, m.l, W - m.r), y = lin(ylo, yhi, H - m.b, m.t);
+  niceTicks(ylo, yhi, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t === 0 ? 'zero' : 'gridline' }, svg); txt(svg, m.l - 8, y(t) + 4, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  [1, 10, 100, 1000].filter(t => t <= kmax).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: m.t, y2: H - m.b, class: 'gridline' }, svg); txt(svg, x(t), H - m.b + 16, String(t), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  txt(svg, (m.l + W - m.r) / 2, H - 6, 'K（近傍サイズ）  →  大域的', { class: 'axis-title', 'text-anchor': 'middle' });
+  txt(svg, 12, m.t + 8, 'R_NX(K)', { class: 'axis-title' });
+  series.forEach(k => {
+    const s = C[k], d = s.k.map((kk, i) => `${i ? 'L' : 'M'}${x(kk).toFixed(1)},${y(s.r[i]).toFixed(1)}`).join('');
+    el('path', { d, fill: 'none', style: `stroke:${M[k].c};stroke-width:${M[k].sr ? 2.6 : 2}`, 'stroke-dasharray': M[k].dash || '', 'stroke-linejoin': 'round' }, svg);
+    const span = document.createElement('span');
+    span.innerHTML = `<span class="sw ${M[k].dash ? 'dash' : ''}" style="background:${M[k].c};border-color:${M[k].c}"></span>${M[k].name}`;
+    legend.appendChild(span);
+  });
+  const cross = el('line', { y1: m.t, y2: H - m.b, style: 'stroke:var(--ink-2);stroke-width:1', visibility: 'hidden' }, svg);
+  const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const kv = Math.exp((p.x - m.l) / (W - m.r - m.l) * Math.log(kmax));
+    const ks = C[series[0]].k; let idx = 0; ks.forEach((kk, i) => { if (Math.abs(Math.log(kk / kv)) < Math.abs(Math.log(ks[idx] / kv))) idx = i; });
+    cross.setAttribute('x1', x(ks[idx])); cross.setAttribute('x2', x(ks[idx])); cross.setAttribute('visibility', 'visible');
+    const vals = series.map(k => [k, C[k].r[idx]]).sort((a, b) => b[1] - a[1]);
+    showTip(`<div class="t">K = ${ks[idx]}</div>` + vals.map(([k, v]) => row(M[k].name, v.toFixed(3), M[k].c)).join(''), e.clientX, e.clientY);
+  });
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+}
+segmented(document.getElementById('rnx-ds'), [['pollen', 'Pollen'], ['digits', 'digits']], 'pollen', v => rnxChart('fig-rnx', 'fig-rnx-legend', v, BASE));
+rnxChart('fig-rnx', 'fig-rnx-legend', 'pollen', BASE);
+const RNX2 = ['tsne', 'mds', 'sr:1.0', 'sr:0.0', 'v1:1.0'];
+segmented(document.getElementById('rnx2-ds'), [['pollen', 'Pollen'], ['digits', 'digits']], 'pollen', v => rnxChart('fig-rnx2', 'fig-rnx2-legend', v, RNX2));
+rnxChart('fig-rnx2', 'fig-rnx2-legend', 'pollen', RNX2);
+
+// ---------------------------------------------------------------- fig 4: heat table
+const HEAT_METRICS = [['rnx@10', '局所 R_NX@10'], ['auc_rnx', 'AUC_RNX'], ['dist_spearman', '大域 距離相関'], ['density_corr', '密度相関'], ['knn_acc', 'kNN 精度']];
+function heatTable(metric) {
+  const t = document.getElementById('heat-table'), cols = [...BASE, 'sr:1.0', 'sr:0.0', 'v1:1.0'];
+  let h = '<thead><tr><th>データ</th>' + cols.map(c => `<th class="n ${M[c].sr ? 'sr-col' : ''}">${M[c].name}</th>`).join('') + '</tr></thead><tbody>';
+  ORDER.forEach(ds => {
+    const S = D.summary[ds], vals = cols.map(c => S[c] ? S[c][metric] : null), ok = vals.filter(v => v != null);
+    if (!ok.length) { h += `<tr><td>${DSN[ds]}</td>` + cols.map(() => '<td class="cell">–</td>').join('') + '</tr>'; return; }
+    const lo = Math.min(...ok), hi = Math.max(...ok);
+    h += `<tr><td>${DSN[ds]}</td>` + vals.map(v => {
+      if (v == null) return '<td class="cell">–</td>';
+      const a = hi > lo ? (v - lo) / (hi - lo) : 1;
+      return `<td class="cell ${v === hi ? 'best' : ''}" style="background:color-mix(in oklab, var(--seq) ${Math.round(a * 100)}%, var(--panel))">${v.toFixed(3)}</td>`;
+    }).join('') + '</tr>';
+  });
+  t.innerHTML = h + '</tbody>';
+}
+segmented(document.getElementById('heat-metric'), HEAT_METRICS, 'rnx@10', heatTable);
+heatTable('rnx@10');
+
+// ---------------------------------------------------------------- fig 5: triplet diagram
+(function () {
+  const svg = document.getElementById('fig-triplet');
+  const defs = el('defs', {}, svg);
+  [['ah-pull', 'var(--good)'], ['ah-push', 'var(--m-sr)']].forEach(([id, c]) => {
+    const mk = el('marker', { id, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0,0 L10,5 L0,10 z', style: `fill:${c}` }, mk);
+  });
+  const ci = [210, 118];
+  el('circle', { cx: ci[0], cy: ci[1], r: 78, fill: 'none', style: 'stroke:var(--muted);stroke-dasharray:5 4' }, svg);
+  txt(svg, ci[0], ci[1] - 86, '元の空間で i の上位 K 近傍', { 'text-anchor': 'middle', style: 'font-size:11.5px;fill:var(--muted)' });
+  [[170, 80], [250, 92], [180, 170], [262, 150], [150, 132]].forEach(p => el('circle', { cx: p[0], cy: p[1], r: 5, style: 'fill:var(--rule);stroke:var(--muted)' }, svg));
+  [[340, 60], [372, 180], [64, 70], [80, 190]].forEach(p => el('circle', { cx: p[0], cy: p[1], r: 5, style: 'fill:var(--rule);stroke:var(--muted)' }, svg));
+  const j = [262, 70], mpt = [318, 128];
+  el('line', { x1: ci[0] + 10, y1: ci[1] - 8, x2: j[0] - 9, y2: j[1] + 7, style: 'stroke:var(--good);stroke-width:2.2', 'marker-end': 'url(#ah-pull)', 'marker-start': 'url(#ah-pull)' }, svg);
+  el('line', { x1: ci[0] + 12, y1: ci[1] + 2, x2: mpt[0] - 12, y2: mpt[1] + 1, style: 'stroke:var(--m-sr);stroke-width:2.2;stroke-dasharray:6 4', 'marker-end': 'url(#ah-push)' }, svg);
+  el('circle', { cx: j[0], cy: j[1], r: 9, style: 'fill:var(--panel);stroke:var(--good);stroke-width:2.2' }, svg);
+  txt(svg, j[0], j[1] + 4, 'j', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: mpt[0], cy: mpt[1], r: 9, style: 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2.2' }, svg);
+  txt(svg, mpt[0], mpt[1] + 4, 'm', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: ci[0], cy: ci[1], r: 10, style: 'fill:var(--ink)' }, svg);
+  txt(svg, ci[0], ci[1] + 4, 'i', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--paper)' });
+  const L = 430;
+  txt(svg, L, 56, '正解の条件', { style: 'font-size:12.5px;font-weight:700;fill:var(--ink)' });
+  txt(svg, L, 78, '2次元で d(i, j) < d(i, m)', { style: 'font-size:12.5px;font-family:var(--f-mono);fill:var(--ink-2)' });
+  el('line', { x1: L, y1: 108, x2: L + 30, y2: 108, style: 'stroke:var(--good);stroke-width:2.2' }, svg);
+  txt(svg, L + 38, 112, 'j を i に引き寄せる', { style: 'font-size:12px' });
+  el('line', { x1: L, y1: 134, x2: L + 30, y2: 134, style: 'stroke:var(--m-sr);stroke-width:2.2;stroke-dasharray:6 4' }, svg);
+  txt(svg, L + 38, 138, 'm を i から遠ざける', { style: 'font-size:12px' });
+  txt(svg, L, 170, 'K は p(K) から、j は上位 K から、', { style: 'font-size:11.5px;fill:var(--muted)' });
+  txt(svg, L, 188, 'm はそれ以外から引く', { style: 'font-size:11.5px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- fig 6: scale profile slider
+(function () {
+  const N = 1797, bins = [[1, 3], [4, 10], [11, 30], [31, 100], [101, 300], [301, 1000], [1001, N - 2]];
+  const svg = document.getElementById('fig-profile'), input = document.getElementById('gamma'), out = document.getElementById('gamma-readout');
+  function draw() {
+    const g = parseFloat(input.value); let tot = 0; const w = [];
+    for (let k = 1; k <= N - 2; k++) { const v = Math.pow(k, -g); w.push(v); tot += v; }
+    const share = bins.map(([a, b]) => { let s = 0; for (let k = a; k <= b; k++) s += w[k - 1]; return s / tot; });
+    out.textContent = `γ = ${g.toFixed(1)}　K≤10 に ${pct(share[0] + share[1])}、K>100 に ${pct(share[4] + share[5] + share[6])}`;
+    svg.innerHTML = '';
+    const W = 640, H = 250, m = { l: 46, r: 10, t: 14, b: 42 };
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const ymax = Math.max(0.5, Math.ceil(Math.max(...share) * 10) / 10);
+    const y = lin(0, ymax, H - m.b, m.t), bw = (W - m.l - m.r) / bins.length;
+    niceTicks(0, ymax, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: 'gridline' }, svg); txt(svg, m.l - 8, y(t) + 4, Math.round(t * 100) + '%', { class: 'tick axis-label', 'text-anchor': 'end' }); });
+    bins.forEach(([a, b], i) => {
+      const x0 = m.l + i * bw + 8;
+      el('rect', { x: x0, y: y(share[i]), width: bw - 16, height: Math.max(0, y(0) - y(share[i])), rx: 3, style: `fill:${i < 2 ? 'var(--m-sr)' : 'var(--c1)'}` }, svg);
+      txt(svg, x0 + (bw - 16) / 2, y(share[i]) - 5, pct(share[i]), { 'text-anchor': 'middle', class: 'axis-label', style: 'font-size:10.5px;fill:var(--ink-2)' });
+      txt(svg, x0 + (bw - 16) / 2, H - m.b + 16, `${a}–${b}`, { 'text-anchor': 'middle', class: 'tick axis-label' });
+      hover(el('rect', { x: m.l + i * bw, y: m.t, width: bw, height: H - m.t - m.b, fill: 'transparent' }, svg), () => `<div class="t">K = ${a}〜${b}</div>${row('重みの割合', pct(share[i]))}`);
+    });
+    txt(svg, (m.l + W - m.r) / 2, H - 6, 'K の範囲（赤: K ≤ 10）', { class: 'axis-title', 'text-anchor': 'middle' });
+  }
+  input.addEventListener('input', draw); draw();
+})();
+
+// ---------------------------------------------------------------- figs 7, 8
+hbars(document.getElementById('fig-objective'), [
+  ['ScaleRank（最初の版）', 0.1456, 'var(--m-sr)', true], ['t-SNE', 0.1656, 'var(--m-tsne)'], ['TriMap', 0.1704, 'var(--m-trimap)'],
+  ['PaCMAP', 0.1839, 'var(--m-pacmap)'], ['densMAP', 0.1983, 'var(--m-densmap)'], ['UMAP', 0.2029, 'var(--m-umap)'],
+  ['MDS', 0.2169, 'var(--m-mds)'], ['PCA', 0.2451, 'var(--m-pca)'],
+].map(([label, value, color, bold]) => ({ label, value, color, bold })), { max: 0.26, fmtv: v => v.toFixed(3), labelW: 160 });
+const hardRows = key => [
+  { label: '一様な負例のみ', value: key === 'rnx' ? 0.436 : 0.463, color: 'var(--m-random)' },
+  { label: 'hard negative 0.3', value: key === 'rnx' ? 0.536 : 0.561, color: 'var(--m-sr)', bold: true },
+  { label: 't-SNE（参考）', value: key === 'rnx' ? 0.583 : 0.539, color: 'var(--m-tsne)' },
+];
+hbars(document.getElementById('fig-hard-rnx'), hardRows('rnx'), { max: 0.7, labelW: 130, width: 420 });
+hbars(document.getElementById('fig-hard-auc'), hardRows('auc'), { max: 0.7, labelW: 130, width: 420 });
+
+// ---------------------------------------------------------------- fig 9: outlier fractions
+groupedBars(document.getElementById('fig-outfrac'), ORDER.map(ds => ({
+  label: DSN[ds],
+  bars: [
+    { name: '初期版 γ=1', value: D.outfrac[ds]['v1:1.0'], color: 'var(--m-sr)', faint: true },
+    { name: '初期版 + 緩和策', value: D.outfrac[ds]['v1:R'], color: 'var(--c7)' },
+    { name: '現行版 γ=1', value: D.outfrac[ds]['sr:1.0'], color: 'var(--m-sr)' },
+    { name: 't-SNE', value: D.outfrac[ds]['tsne'], color: 'var(--m-tsne)' },
+    { name: 'MDS', value: D.outfrac[ds]['mds'], color: 'var(--m-mds)' },
+  ],
+})), { max: 0.3, barH: 8, gap: 2 });
+
+// ---------------------------------------------------------------- fig 10: hub diagram
+(function () {
+  const svg = document.getElementById('fig-hub');
+  const defs = el('defs', {}, svg);
+  const mk = el('marker', { id: 'ah-nn', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--muted)' }, mk);
+  const hub = [250, 112];
+  const pts = [[160, 60], [170, 170], [330, 58], [340, 168], [250, 36], [250, 192], [140, 112]];
+  const anti = [520, 112];
+  pts.forEach(p => {
+    const dx = hub[0] - p[0], dy = hub[1] - p[1], d = Math.hypot(dx, dy);
+    el('line', { x1: p[0] + dx / d * 9, y1: p[1] + dy / d * 9, x2: hub[0] - dx / d * 15, y2: hub[1] - dy / d * 15, style: 'stroke:var(--muted);stroke-width:1.4', 'marker-end': 'url(#ah-nn)' }, svg);
+    el('circle', { cx: p[0], cy: p[1], r: 7, style: 'fill:var(--panel);stroke:var(--ink-2);stroke-width:1.5' }, svg);
+  });
+  const t = pts[3];
+  el('line', { x1: anti[0] - 12, y1: anti[1] + 6, x2: t[0] + 12, y2: t[1] - 6, style: 'stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3', 'marker-end': 'url(#ah-nn)' }, svg);
+  el('circle', { cx: hub[0], cy: hub[1], r: 13, style: 'fill:var(--c1)' }, svg);
+  txt(svg, hub[0], hub[1] + 32, 'hub', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: anti[0], cy: anti[1], r: 8, style: 'fill:var(--panel);stroke:var(--ink);stroke-width:2' }, svg);
+  el('circle', { cx: anti[0], cy: anti[1], r: 12, style: 'fill:none;stroke:var(--ink);stroke-width:1.2' }, svg);
+  txt(svg, anti[0], anti[1] + 30, 'anti-hub', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  txt(svg, anti[0], anti[1] + 46, '誰からも指されない', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--muted)' });
+  txt(svg, hub[0], 212, '多くの点の最近傍になる', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- fig 12: P(out | anti-hub)
+groupedBars(document.getElementById('fig-antihub'),
+  [['hier_blobs', 1.98, 0.62, 0.08], ['density_blobs', 1.09, 0.74, 0.19], ['digits', 0.79, 0.36, 0.19], ['pollen', 0.80, 0.54, 0.57]]
+    .map(([ds, skew, a, b]) => ({ label: `${DSN[ds]}（${skew.toFixed(2)}）`, bars: [
+      { name: 'hard あり', value: a, color: 'var(--m-sr)' }, { name: 'hard なし', value: b, color: 'var(--m-random)' }] })),
+  { max: 1, labelW: 170, barH: 11, gap: 3, pad: 14 });
+
+// ---------------------------------------------------------------- fig 13: force decomposition
+(function () {
+  const svg = document.getElementById('fig-forces');
+  const rows = [
+    ['anchor として: 自分の近傍 j に寄る', -0.0557, -0.0440],
+    ['anchor として: 一様な m から離れる', 0.0065, 0.0058],
+    ['anchor として: hard negative の m から離れる', 0.0453, 0.0202],
+    ['j として: 他の点に引かれる', -0.0092, -0.0210],
+    ['m として: 他の点に押される（一様）', 0.0034, 0.0052],
+    ['m として: 他の点に押される（hard）', -0.0030, -0.0041],
+    ['合計', -0.0127, -0.0378],
+  ];
+  const W = 640, labelW = 250, gh = 34, H = rows.length * gh + 30;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H + 6}`);
+  const x = lin(-0.06, 0.05, labelW + 10, W - 16);
+  [-0.06, -0.04, -0.02, 0, 0.02, 0.04].forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 26, class: t === 0 ? 'zero' : 'gridline' }, svg); txt(svg, x(t), H - 10, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  txt(svg, x(-0.03), H + 2, '← 内向き', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  txt(svg, x(0.03), H + 2, '外向き →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  rows.forEach(([name, a, b], i) => {
+    const y0 = i * gh + 4, total = name === '合計';
+    if (total) el('line', { x1: 0, x2: W, y1: y0 - 2, y2: y0 - 2, style: 'stroke:var(--rule)' }, svg);
+    txt(svg, labelW, y0 + gh / 2 - 1, name, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: `font-size:11.5px;${total ? 'font-weight:700;fill:var(--ink)' : ''}` });
+    [[a, 'var(--m-sr)'], [b, 'var(--c1)']].forEach(([v, c], bi) => {
+      const y = y0 + 6 + bi * 11;
+      el('rect', { x: Math.min(x(0), x(v)), y, width: Math.max(1.5, Math.abs(x(v) - x(0))), height: 9, rx: 2, style: `fill:${c}` }, svg);
+    });
+    hover(el('rect', { x: 0, y: y0, width: W, height: gh, fill: 'transparent' }, svg),
+      `<div class="t">${name}</div>${row('外れ点になる点', (a > 0 ? '+' : '') + a.toFixed(4), 'var(--m-sr)')}${row('それ以外', (b > 0 ? '+' : '') + b.toFixed(4), 'var(--c1)')}`);
+  });
+})();
+
+// ---------------------------------------------------------------- generic small line chart over categories
+function catLines(svg, cats, series, { lo, hi, ref, fmtv = v => v.toFixed(2), width = 420, height = 260 } = {}) {
+  svg.innerHTML = '';
+  const m = { l: 44, r: 92, t: 12, b: 34 };
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  const x = i => m.l + 18 + i * (width - m.l - m.r - 36) / (cats.length - 1), y = lin(lo, hi, height - m.b, m.t);
+  niceTicks(lo, hi, 5).forEach(t => { el('line', { x1: m.l, x2: width - m.r, y1: y(t), y2: y(t), class: 'gridline' }, svg); txt(svg, m.l - 6, y(t) + 4, fmtv(t), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  cats.forEach((c, i) => txt(svg, x(i), height - m.b + 16, c, { class: 'tick axis-label', 'text-anchor': 'middle' }));
+  txt(svg, (m.l + width - m.r) / 2, height - 4, '負例の数 Q', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  series.forEach(s => {
+    el('path', { d: s.values.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(''), fill: 'none', style: `stroke:${s.color};stroke-width:2` }, svg);
+    s.values.forEach((v, i) => {
+      el('circle', { cx: x(i), cy: y(v), r: 4, style: `fill:${s.color};stroke:var(--panel);stroke-width:1.5` }, svg);
+      hover(el('circle', { cx: x(i), cy: y(v), r: 10, fill: 'transparent' }, svg), `<div class="t">${s.name}</div>${row('Q = ' + cats[i], fmtv(v))}`);
+    });
+    if (ref && s.ref != null) {
+      const rx = m.l + 4, ry = y(s.ref);
+      el('path', { d: `M${rx - 4},${ry - 4}L${rx + 4},${ry + 4}M${rx - 4},${ry + 4}L${rx + 4},${ry - 4}`, style: `stroke:${s.color};stroke-width:2` }, svg);
+      hover(el('circle', { cx: rx, cy: ry, r: 9, fill: 'transparent' }, svg), `<div class="t">${s.name}</div>${row('初期版（三つ組 + hard）', fmtv(s.ref))}`);
+    }
+    const last = s.values[s.values.length - 1];
+    txt(svg, x(cats.length - 1) + 9, y(last) + 4 + (s.nudge || 0), s.name, { style: `font-size:10.5px;fill:var(--ink-2)` });
+  });
+}
+
+// ---------------------------------------------------------------- fig 14: Q sweep (static numbers from scripts/sweep_scalerank.py runs)
+(function () {
+  const Q = ['1', '5', '20', '100'];
+  const S = [
+    { ds: 'pollen', color: 'var(--c1)', rnx: [0.664, 0.677, 0.681, 0.673], sp: [0.876, 0.859, 0.833, 0.807], rr: 0.691, rs: 0.862 },
+    { ds: 'digits', color: 'var(--c2)', rnx: [0.435, 0.488, 0.529, 0.552], sp: [0.659, 0.630, 0.606, 0.592], rr: 0.536, rs: 0.626 },
+    { ds: 'density_blobs', color: 'var(--c3)', rnx: [0.278, 0.309, 0.364, 0.380], sp: [0.615, 0.599, 0.593, 0.595], rr: 0.308, rs: 0.594 },
+    { ds: 'hier_blobs', color: 'var(--c4)', rnx: [0.268, 0.288, 0.307, 0.319], sp: [0.982, 0.981, 0.972, 0.941], rr: 0.238, rs: 0.942 },
+  ];
+  catLines(document.getElementById('fig-qsweep-rnx'), Q, S.map(s => ({ name: DSN[s.ds].replace('手書き数字 ', ''), color: s.color, values: s.rnx, ref: s.rr })), { lo: 0.2, hi: 0.75, ref: true });
+  catLines(document.getElementById('fig-qsweep-sp'), Q, S.map(s => ({ name: DSN[s.ds].replace('手書き数字 ', ''), color: s.color, values: s.sp, ref: s.rs, nudge: s.ds === 'density_blobs' ? 6 : s.ds === 'digits' ? -4 : 0 })), { lo: 0.55, hi: 1.0, ref: true });
+  document.getElementById('fig-qsweep-legend').innerHTML = S.map(s => `<span><span class="sw" style="background:${s.color}"></span>${DSN[s.ds]}</span>`).join('') +
+    `<span><span style="color:var(--ink-2);font-family:var(--f-mono)">×</span>初期版（三つ組 + hard 0.3）</span>`;
+})();
+
+// ---------------------------------------------------------------- table 2: 8-dataset means
+(function () {
+  const rows = [
+    ['v1:1.0', '初期版（三つ組 + hard 0.3）'], ['sr:1.0', '現行版 γ=1（Q=20、8グループ）'], ['q100', 'Q=100、4グループ'],
+    ['tsne', 't-SNE'], ['mds', 'MDS'],
+  ];
+  document.getElementById('mean-table').innerHTML = rows.map(([k, name]) =>
+    `<tr class="${k === 'sr:1.0' ? 'hl' : ''}"><td>${name}</td><td class="n">${pct(avgOut(k))}</td><td class="n">${fmt(avg(k, 'rnx@10'))}</td><td class="n">${fmt(avg(k, 'auc_rnx'))}</td><td class="n">${fmt(avg(k, 'dist_spearman'))}</td><td class="n">${fmt(avg(k, 'density_corr'))}</td><td class="n">${fmt(avg(k, 'time_s'), 1)} 秒</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- fig 15: 2-D square
+hbars(document.getElementById('fig-square'), [
+  { label: '初期版（300 エポック）', value: 0.891, color: 'var(--m-sr)', faint: true },
+  { label: '現行版（300 エポック）', value: 0.763, color: 'var(--m-sr)', bold: true },
+  { label: '現行版（800 エポック）', value: 0.799, color: 'var(--m-sr)' },
+  { label: '現行版（800、PCA 初期化）', value: 0.809, color: 'var(--m-sr)' },
+], { max: 1, labelW: 180 });
+
+// ---------------------------------------------------------------- fig 16: trade-off small multiples
+let tradeMode = 'both';
+function drawTrade() {
+  const legend = document.getElementById('fig-trade-legend');
+  legend.innerHTML = BASE.map(k => `<span><span class="sw dot" style="background:${M[k].c}"></span>${M[k].name}</span>`).join('') +
+    (tradeMode !== 'v1' ? `<span><span class="sw dot" style="background:var(--m-sr)"></span>現行版（γ=1, 0.5, 0）</span>` : '') +
+    (tradeMode !== 'sr' ? `<span><span class="sw ring" style="border-color:var(--m-sr)"></span>初期版（γ=1, 0.5, 0）</span>` : '');
+  const grid = document.getElementById('fig-trade'); grid.innerHTML = '';
+  const families = [];
+  if (tradeMode !== 'v1') families.push({ keys: SRK, hollow: false, dash: '' });
+  if (tradeMode !== 'sr') families.push({ keys: V1K, hollow: true, dash: '5 3' });
+  ORDER.forEach(ds => {
+    const S = D.summary[ds];
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="mini-title">${DSN[ds]}</div>`;
+    const svg = el('svg', { class: 'chart', viewBox: '0 0 300 240', role: 'img', 'aria-label': `${DSN[ds]} のトレードオフ` });
+    wrap.appendChild(svg); grid.appendChild(wrap);
+    const keys = [...BASE, ...families.flatMap(f => f.keys)].filter(k => S[k]);
+    const xs = keys.map(k => S[k].dist_spearman), ys = keys.map(k => S[k]['rnx@10']);
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const px = (x1 - x0) * 0.12 || 0.05, py = (y1 - y0) * 0.14 || 0.05; x0 -= px; x1 += px; y0 -= py; y1 += py;
+    const m = { l: 38, r: 10, t: 8, b: 34 };
+    const X = lin(x0, x1, m.l, 300 - m.r), Y = lin(y0, y1, 240 - m.b, m.t);
+    niceTicks(x0, x1, 4).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: 240 - m.b, class: 'gridline' }, svg); txt(svg, X(t), 240 - m.b + 13, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle', style: 'font-size:10px' }); });
+    niceTicks(y0, y1, 4).forEach(t => { el('line', { x1: m.l, x2: 300 - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 5, Y(t) + 3, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end', style: 'font-size:10px' }); });
+    txt(svg, (m.l + 300 - m.r) / 2, 236, '大域: 距離相関 →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+    txt(svg, 4, m.t + 2, '局所↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+    const point = (k, x, y, hollow, label) => {
+      el('circle', { cx: X(x), cy: Y(y), r: M[k].sr ? 5 : 4.5, style: hollow ? `fill:var(--panel);stroke:${M[k].c};stroke-width:2` : `fill:${M[k].c};stroke:var(--panel);stroke-width:2` }, svg);
+      if (label) txt(svg, X(x) + 7, Y(y) - 6, label, { style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('局所 R_NX@10', y.toFixed(3))}${row('大域 距離相関', x.toFixed(3))}`);
+    };
+    families.forEach(f => {
+      const pts = f.keys.filter(k => S[k]).map(k => [k, S[k].dist_spearman, S[k]['rnx@10']]);
+      el('path', { d: pts.map(([, x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': f.dash }, svg);
+    });
+    BASE.filter(k => S[k]).forEach(k => point(k, S[k].dist_spearman, S[k]['rnx@10'], false));
+    families.forEach(f => f.keys.filter(k => S[k]).forEach(k => point(k, S[k].dist_spearman, S[k]['rnx@10'], f.hollow,
+      f.hollow && tradeMode === 'both' ? '' : (k.endsWith('1.0') ? 'γ=1' : k.endsWith('0.5') ? '0.5' : '0'))));
+  });
+}
+segmented(document.getElementById('trade-mode'), [['both', '両方'], ['sr', '現行版'], ['v1', '初期版']], tradeMode, v => { tradeMode = v; drawTrade(); });
+drawTrade();
+
+// ---------------------------------------------------------------- fig 17: mean trade-off and γ vs outliers
+(function () {
+  const svg = document.getElementById('fig-mean-trade');
+  const W = 420, H = 280, m = { l: 46, r: 16, t: 12, b: 38 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pts = k => [avg(k, 'dist_spearman'), avg(k, 'rnx@10')];
+  const all = [...SRK, ...V1K, 'tsne', 'mds', 'pacmap'].map(pts);
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  const x0 = Math.min(...xs) - 0.04, x1 = Math.max(...xs) + 0.04, y0 = Math.min(...ys) - 0.03, y1 = Math.max(...ys) + 0.03;
+  const X = lin(x0, x1, m.l, W - m.r), Y = lin(y0, y1, H - m.b, m.t);
+  niceTicks(x0, x1, 5).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: H - m.b, class: 'gridline' }, svg); txt(svg, X(t), H - m.b + 14, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  niceTicks(y0, y1, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 6, Y(t) + 4, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  txt(svg, (m.l + W - m.r) / 2, H - 4, '大域: 距離相関（平均）→', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  txt(svg, 4, m.t + 2, '局所↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+  [[SRK, false, ''], [V1K, true, '5 3']].forEach(([keys, hollow, dash]) => {
+    const P = keys.map(pts);
+    el('path', { d: P.map(([x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': dash }, svg);
+    keys.forEach((k, i) => {
+      const [x, y] = P[i];
+      el('circle', { cx: X(x), cy: Y(y), r: 5, style: hollow ? 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2' : 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, svg);
+      txt(svg, X(x) + (hollow ? 8 : -8), Y(y) + (hollow ? 12 : -7), `γ=${k.split(':')[1].replace('.0', '')}`, { 'text-anchor': hollow ? 'start' : 'end', style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${hollow ? '初期版' : '現行版'} γ=${k.split(':')[1]}</div>${row('局所 R_NX@10', y.toFixed(3))}${row('大域 距離相関', x.toFixed(3))}${row('外れ点', pct(avgOut(k)))}`);
+    });
+  });
+  ['tsne', 'mds', 'pacmap'].forEach(k => {
+    const [x, y] = pts(k);
+    el('circle', { cx: X(x), cy: Y(y), r: 5, style: `fill:${M[k].c};stroke:var(--panel);stroke-width:2` }, svg);
+    txt(svg, X(x) + 8, Y(y) + 4, M[k].name, { style: 'font-size:10.5px;fill:var(--ink-2)' });
+    hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('局所 R_NX@10', y.toFixed(3))}${row('大域 距離相関', x.toFixed(3))}`);
+  });
+
+  // γ vs outliers
+  const s2 = document.getElementById('fig-gamma-out');
+  s2.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const G = ['1', '0.5', '0'], gx = i => m.l + 30 + i * (W - m.l - m.r - 60) / 2;
+  const series = [[SRK, false, ''], [V1K, true, '5 3']].map(([keys, hollow, dash]) => ({ hollow, dash, v: keys.map(avgOut) }));
+  const ymax = Math.max(0.2, Math.ceil(Math.max(...series.flatMap(s => s.v)) * 20) / 20);
+  const Y2 = lin(0, ymax, H - m.b, m.t);
+  niceTicks(0, ymax, 4).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: Y2(t), y2: Y2(t), class: 'gridline' }, s2); txt(s2, m.l - 6, Y2(t) + 4, Math.round(t * 100) + '%', { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  G.forEach((g, i) => txt(s2, gx(i), H - m.b + 14, `γ=${g}`, { class: 'tick axis-label', 'text-anchor': 'middle' }));
+  txt(s2, (m.l + W - m.r) / 2, H - 4, '← 局所寄り　　γ　　大域寄り →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  const tsneOut = avgOut('tsne');
+  el('line', { x1: m.l, x2: W - m.r, y1: Y2(tsneOut), y2: Y2(tsneOut), style: 'stroke:var(--m-tsne);stroke-width:1.5;stroke-dasharray:3 3' }, s2);
+  txt(s2, W - m.r, Y2(tsneOut) - 5, `t-SNE ${pct(tsneOut)}`, { 'text-anchor': 'end', style: 'font-size:10px;fill:var(--ink-2)' });
+  series.forEach(s => {
+    el('path', { d: s.v.map((v, i) => `${i ? 'L' : 'M'}${gx(i)},${Y2(v)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': s.dash }, s2);
+    s.v.forEach((v, i) => {
+      el('circle', { cx: gx(i), cy: Y2(v), r: 5, style: s.hollow ? 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2' : 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, s2);
+      hover(el('circle', { cx: gx(i), cy: Y2(v), r: 11, fill: 'transparent' }, s2), `<div class="t">${s.hollow ? '初期版' : '現行版'} γ=${G[i]}</div>${row('外れ点', pct(v))}`);
+    });
+  });
+})();
+
+// ---------------------------------------------------------------- table 3: pollen
+(function () {
+  const P = D.summary.pollen;
+  document.getElementById('pollen-table').innerHTML = ['sr:1.0', 'v1:1.0', 'tsne', 'mds', 'umap', 'pca'].map(k =>
+    `<tr class="${k === 'sr:1.0' ? 'hl' : ''}"><td>${k === 'sr:1.0' ? '現行版 γ=1' : M[k].name}</td><td class="n">${fmt(P[k]['rnx@10'])}</td><td class="n">${fmt(P[k].dist_spearman)}</td><td class="n">${fmt(P[k].auc_rnx)}</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- canvas scatter
+const scatters = [];
+function scatter(container, title, coords, style, tipFn) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="mini-title">${title}</div>`;
+  const cv = document.createElement('canvas'); cv.className = 'scatter'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', title.replace(/<[^>]+>/g, ' '));
+  wrap.appendChild(cv); container.appendChild(wrap);
+  const S = { cv, coords, style, tipFn, scr: [] };
+  S.draw = () => {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (!r.width) return;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.width * dpr);
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.width);
+    const pad = 12, s = r.width - 2 * pad;
+    S.scr = coords.map(([x, y]) => [pad + x * s, pad + (1 - y) * s]);
+    const order = coords.map((_, i) => i).sort((a, b) => (style(a).z || 0) - (style(b).z || 0));
+    const size = Math.max(1.6, Math.min(3.2, r.width / 140));
+    const ink = css('--ink'), cache = {};
+    order.forEach(i => {
+      const st = style(i), [x, y] = S.scr[i], rr = size * (st.scale || 1);
+      ctx.globalAlpha = st.alpha ?? 0.85;
+      ctx.fillStyle = cache[st.color] || (cache[st.color] = css(st.color));
+      ctx.beginPath();
+      if (st.tri) { ctx.moveTo(x, y - rr * 1.25); ctx.lineTo(x + rr * 1.1, y + rr * 0.8); ctx.lineTo(x - rr * 1.1, y + rr * 0.8); ctx.closePath(); }
+      else ctx.arc(x, y, rr, 0, Math.PI * 2);
+      ctx.fill();
+      if (st.ring) { ctx.globalAlpha = 1; ctx.lineWidth = 1.4; ctx.strokeStyle = ink; ctx.beginPath(); ctx.arc(x, y, rr + 2.2, 0, Math.PI * 2); ctx.stroke(); }
+    });
+    ctx.globalAlpha = 1;
+  };
+  cv.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = -1, bd = 144;
+    S.scr.forEach(([x, y], i) => { const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) showTip(tipFn(best), e.clientX, e.clientY); else hideTip();
+  });
+  cv.addEventListener('pointerleave', hideTip);
+  scatters.push(S); return S;
+}
+const SLOT = i => `--c${(i % 8) + 1}`;
+
+// fig 19: digits
+(function () {
+  const E = D.emb.digits, lab = E.labels, box = document.getElementById('fig-digits');
+  [['mds', 'MDS'], ['tsne', 't-SNE'], ['v1:1.0', '初期版 γ=1'], ['sr:1.0', '現行版 γ=1']].forEach(([k, name]) =>
+    scatter(box, name, E.emb[k], i => ({ color: SLOT(lab[i]), tri: lab[i] >= 8 }), i => `<div class="t">数字 ${lab[i]}</div>${name}`));
+  document.getElementById('fig-digits-legend').innerHTML = Array.from({ length: 10 }, (_, c) =>
+    `<span>${c >= 8 ? `<span style="color:var(${SLOT(c)});font-size:11px">▲</span>` : `<span class="sw dot" style="background:var(${SLOT(c)})"></span>`}${c}</span>`).join('');
+})();
+
+// fig 11: hier_blobs anti-hubs
+(function () {
+  const E = D.emb.hier_blobs, lab = E.labels, anti = E.antihub, box = document.getElementById('fig-hier');
+  let mode = 'anti';
+  const panels = [['v1:1.0', '初期版（hard 0.3）'], ['v1:nohard', '初期版 hard なし'], ['sr:1.0', '現行版（ソフトマックス）'], ['tsne', 't-SNE']];
+  const made = panels.map(([k, name]) => {
+    const out = E.outlier[k];
+    const nOut = out.reduce((a, b) => a + b, 0), nAntiOut = out.filter((o, i) => o && anti[i]).length;
+    return scatter(box, `${name}<div class="mini-sub">外れ点 ${(nOut / out.length * 100).toFixed(1)}%（うち anti-hub ${nOut ? Math.round(nAntiOut / nOut * 100) : 0}%）</div>`, E.emb[k],
+      i => mode === 'anti'
+        ? (anti[i] ? { color: SLOT(lab[i]), ring: true, z: 2, alpha: 1 } : { color: SLOT(lab[i]), alpha: 0.35, z: 0 })
+        : { color: SLOT(lab[i]), alpha: 0.85 },
+      i => `<div class="t">大クラスタ ${lab[i] + 1}</div>${anti[i] ? 'anti-hub（10-NN に2回以下）' : '通常の点'}${out[i] ? '<br>外れ点' : ''}`);
+  });
+  segmented(document.getElementById('hier-mode'), [['anti', 'anti-hub を強調'], ['plain', '色のみ']], mode, v => { mode = v; made.forEach(s => s.draw()); });
+  document.getElementById('fig-hier-legend').innerHTML =
+    [0, 1, 2].map(c => `<span><span class="sw dot" style="background:var(${SLOT(c)})"></span>大クラスタ ${c + 1}</span>`).join('') +
+    `<span><span class="sw ring" style="border-color:var(--ink)"></span>anti-hub</span>`;
+})();
+
+// ---------------------------------------------------------------- fig 20: tuned t-SNE / UMAP against ScaleRank
+const DIFF_KEYS = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
+const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(3);
+(function () {
+  const grid = document.getElementById('fig-tuned');
+  const label = spec => {
+    const [m, p] = spec.split(':');
+    const s = p.replace('initialization=random', 'ランダム初期化').replace('init=random', 'ランダム初期化')
+      .replace(/,/g, ', ').replace(/=/g, ' ');
+    return (m === 'tsne' ? 't-SNE ' : 'UMAP ') + s;
+  };
+  ORDER.forEach(ds => {
+    const S = D.summary[ds], T = D.tuned[ds] || [];
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="mini-title">${DSN[ds]}</div>`;
+    const svg = el('svg', { class: 'chart', viewBox: '0 0 300 240', role: 'img', 'aria-label': `${DSN[ds]}: 調整した t-SNE・UMAP と ScaleRank` });
+    wrap.appendChild(svg); grid.appendChild(wrap);
+    const sr = SRK.filter(k => S[k]).map(k => [k, S[k].dist_spearman, S[k]['rnx@10']]);
+    const xs = [...T.map(t => t[1]), ...sr.map(p => p[1])], ys = [...T.map(t => t[2]), ...sr.map(p => p[2])];
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const px = (x1 - x0) * 0.12 || 0.05, py = (y1 - y0) * 0.14 || 0.05; x0 -= px; x1 += px; y0 -= py; y1 += py;
+    const m = { l: 38, r: 10, t: 8, b: 34 };
+    const X = lin(x0, x1, m.l, 300 - m.r), Y = lin(y0, y1, 240 - m.b, m.t);
+    niceTicks(x0, x1, 4).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: 240 - m.b, class: 'gridline' }, svg); txt(svg, X(t), 240 - m.b + 13, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle', style: 'font-size:10px' }); });
+    niceTicks(y0, y1, 4).forEach(t => { el('line', { x1: m.l, x2: 300 - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 5, Y(t) + 3, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end', style: 'font-size:10px' }); });
+    txt(svg, (m.l + 300 - m.r) / 2, 236, '大域: 距離相関 →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+    txt(svg, 4, m.t + 2, '局所↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+    T.forEach(([spec, x, y]) => {
+      const c = spec.startsWith('tsne') ? 'var(--m-tsne)' : 'var(--m-umap)';
+      el('circle', { cx: X(x), cy: Y(y), r: 3.2, style: `fill:${c};opacity:0.8` }, svg);
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 8, fill: 'transparent' }, svg), `<div class="t">${label(spec)}</div>${row('局所 R_NX@10', y.toFixed(3))}${row('大域 距離相関', x.toFixed(3))}`);
+    });
+    el('path', { d: sr.map(([, x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2' }, svg);
+    sr.forEach(([k, x, y]) => {
+      el('circle', { cx: X(x), cy: Y(y), r: 5, style: 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, svg);
+      txt(svg, X(x) + 7, Y(y) - 6, k.endsWith('1.0') ? 'γ=1' : k.endsWith('0.5') ? '0.5' : '0', { style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('局所 R_NX@10', y.toFixed(3))}${row('大域 距離相関', x.toFixed(3))}`);
+    });
+  });
+})();
+
+// ---------------------------------------------------------------- table 5: N²-free version against the original
+(function () {
+  document.getElementById('fast-table').innerHTML = ['1.0', '0.5', '0.0'].filter(g => D.fast[g]).map(g =>
+    `<tr><td>γ=${g.replace('.0', '')}</td>${DIFF_KEYS.map(k => `<td class="n">${signed(D.fast[g].diff[k])}</td>`).join('')}</tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 6 and fig 21: 70k points
+(function () {
+  const names = { tsne: 't-SNE', umap: 'UMAP', 'rs:1.0': 'ScaleRank γ=1', 'rs:1.0ns': 'ScaleRank γ=1（neg_scale 0.5）', 'rs:0.0': 'ScaleRank γ=0' };
+  const draw = ds => {
+    const S = D.big.summary[ds];
+    document.getElementById('big-table').innerHTML = Object.keys(names).filter(k => S[k]).map(k =>
+      `<tr class="${k === 'rs:1.0' ? 'hl' : ''}"><td>${names[k]}</td>${DIFF_KEYS.map(m => `<td class="n">${fmt(S[k][m])}</td>`).join('')}<td class="n">${fmt(S[k].time_s, 0)} 秒</td></tr>`).join('');
+  };
+  segmented(document.getElementById('big-ds'), [['mnist70k', 'MNIST'], ['fmnist70k', 'Fashion-MNIST']], 'mnist70k', draw);
+  draw('mnist70k');
+  const E = D.big.emb, lab = E.labels, box = document.getElementById('fig-big');
+  [['tsne', 't-SNE'], ['umap', 'UMAP'], ['rs:1.0ns', 'ScaleRank γ=1（neg_scale 0.5）'], ['rs:0.0', 'ScaleRank γ=0']].filter(([k]) => E.emb[k]).forEach(([k, name]) =>
+    scatter(box, name, E.emb[k], i => ({ color: SLOT(lab[i]), tri: lab[i] >= 8, alpha: 0.7 }), i => `<div class="t">数字 ${lab[i]}</div>${name}`));
+  document.getElementById('fig-big-legend').innerHTML = Array.from({ length: 10 }, (_, c) =>
+    `<span>${c >= 8 ? `<span style="color:var(${SLOT(c)});font-size:11px">▲</span>` : `<span class="sw dot" style="background:var(${SLOT(c)})"></span>`}${c}</span>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 7: Rust ports against their references
+(function () {
+  const names = { tsne_rs: 't-SNE', umap_rs: 'UMAP', 'scalerank_rs:gamma=1.0': 'ScaleRank γ=1' };
+  const refs = { tsne: 'openTSNE', 'umap:init=pca': 'umap-learn（PCA 初期化）', 'scalerank_fast:gamma=1.0': 'Python 版' };
+  document.getElementById('ports-table').innerHTML = D.ports.map(p =>
+    `<tr><td>${names[p.rust]}</td><td>${refs[p.ref]}</td>${DIFF_KEYS.map(k => `<td class="n">${signed(p.diff[k])}</td>`).join('')}<td class="n">${p.time[0].toFixed(2)} / ${p.time[1].toFixed(2)} 秒</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 8: stability against the seed and the row order
+(function () {
+  const S = D.stability;
+  if (!S) return;
+  const rows = [
+    ['pca', 'PCA', 'pca'], ['mds', 'MDS', null],
+    ['tsne', 't-SNE', 'tsne'], ['tsne:initialization=random', 't-SNE（' + 'ランダム初期化' + '）', null],
+    ['umap', 'UMAP（' + 'スペクトル初期化' + '）', 'umap'], ['umap:init=pca', 'UMAP（' + 'PCA 初期化' + '）', 'umap:init=pca'], ['umap:init=random', 'UMAP（' + 'ランダム初期化' + '）', null],
+    ['densmap', 'densMAP', null], ['pacmap', 'PaCMAP', null], ['trimap', 'TriMap', null],
+    ['scalerank:gamma=1.0', 'ScaleRank γ=1', 'scalerank_rs:gamma=1.0'], ['scalerank:gamma=0.5', 'ScaleRank γ=0.5', null], ['scalerank:gamma=0.0', 'ScaleRank γ=0', 'scalerank_rs:gamma=0.0'],
+  ];
+  const cell = (m, exp, k) => { const v = S.methods[m] && S.methods[m][exp]; return `<td class="n">${v ? fmt(v[k]) : '–'}</td>`; };
+  document.getElementById('stability-table').innerHTML = rows.filter(([k]) => S.methods[k]).map(([k, name, ko]) =>
+    `<tr class="${k === 'scalerank:gamma=1.0' ? 'hl' : ''}"><td>${name}</td>${cell(k, 'seed', 'dist')}${ko ? cell(ko, 'order', 'dist') : '<td class="n">–</td>'}${cell(k, 'seed', 'knn')}${ko ? cell(ko, 'order', 'knn') : '<td class="n">–</td>'}</tr>`).join('');
+  document.querySelectorAll('.js-rho').forEach(e => { const v = S.rho[e.dataset.m]; e.textContent = v == null ? '–' : v.toFixed(2); });
+})();
+
+// ---------------------------------------------------------------- redraw canvases on resize / theme change
+const redraw = () => scatters.forEach(s => s.draw());
+redraw();
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(redraw, 120); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (document.fonts) document.fonts.ready.then(redraw);
+})();
+</script>

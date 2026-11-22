@@ -1,0 +1,1608 @@
+<title>From MADR to ScaleRank</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a research notebook. One readable column (44rem) for prose; figures break out to 68rem. Everything left-aligned. */
+:root {
+  --paper: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #161a21;
+  --ink-2: #464d5a;
+  --muted: #747b88;
+  --rule: #dcdfe5;
+  --grid: #e7e9ee;
+  --accent: #c2302f;          /* ScaleRank, the protagonist: text-safe red */
+  --accent-soft: #fbe9e8;
+  --seq: #86b6ef;             /* heat cells */
+  --code-bg: #eceef2;
+  --m-pca: #2a78d6; --m-tsne: #eb6834; --m-umap: #1baf7a; --m-densmap: #eda100;
+  --m-pacmap: #e87ba4; --m-mds: #008300; --m-trimap: #6250d6; --m-sr: #e34948; --m-random: #9a9893;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --c8: #e34948;
+  --good: #1f7a3d;
+  --f-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --col: 44rem;
+  --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
+    --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+    --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
+    --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --good: #5cc27d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
+  --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+  --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
+  --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  --good: #5cc27d;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 16.5px; line-height: 1.85;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 4rem;
+  -webkit-font-smoothing: antialiased;
+}
+main { display: grid; gap: 0; }
+.col { width: 100%; max-width: var(--col); margin-inline: auto; }
+.wide { width: 100%; max-width: var(--wide); margin-inline: auto; }
+.sr-only { position: absolute; left: -9999px; }
+
+header.top { padding-block: 3.5rem 2rem; border-bottom: 1px solid var(--rule); margin-bottom: 1rem; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(2.1rem, 5vw, 3.2rem); line-height: 1.25; margin: 0.4rem 0 1rem; text-wrap: balance; letter-spacing: 0.01em; }
+h1 .to { color: var(--accent); }
+.lede { font-size: 1.1rem; color: var(--ink-2); max-width: 40rem; margin: 0; }
+.meta { margin-top: 1.25rem; font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; }
+.meta a { color: var(--ink-2); }
+
+h2 { font-family: var(--f-display); font-weight: 800; font-size: 1.65rem; line-height: 1.4; margin: 0; text-wrap: balance; }
+h3 { font-size: 1.05rem; font-weight: 700; margin: 1.6rem 0 0.2rem; }
+section { padding-block: 2.8rem 0.5rem; display: grid; gap: 1.1rem; }
+.sec-head { display: grid; gap: 0.25rem; border-top: 2px solid var(--ink); padding-top: 0.9rem; }
+.sec-head.new { border-top-color: var(--accent); }
+.badge { display: inline-block; font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.06em; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 0.5rem; margin-left: 0.5rem; vertical-align: middle; }
+p { margin: 0.7rem 0; }
+strong { font-weight: 700; }
+a { color: var(--accent); text-underline-offset: 2px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 4px; }
+.sr { color: var(--accent); font-weight: 700; }
+ul, ol { padding-left: 1.3rem; }
+li { margin: 0.25rem 0; }
+
+nav.toc { font-size: 0.92rem; }
+nav.toc ol { columns: 2 16rem; column-gap: 2rem; margin: 0.4rem 0 0; padding-left: 1.2rem; }
+nav.toc a { color: var(--ink-2); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); text-decoration: underline; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+.summary > div { border-top: 1px solid var(--rule); padding-top: 0.7rem; min-width: 0; }
+.summary .k { font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+.summary p { margin: 0.3rem 0 0; font-size: 0.97rem; }
+
+figure { margin: 0.6rem 0 0.4rem; display: grid; gap: 0.6rem; min-width: 0; }
+figure.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.1rem 1.1rem 0.9rem; }
+figcaption { font-size: 0.86rem; color: var(--ink-2); line-height: 1.7; }
+figcaption b { color: var(--ink); }
+.fig-sub { font-size: 0.82rem; color: var(--muted); }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { font-family: var(--f-body); fill: var(--ink-2); }
+svg .tick text, svg .axis-label { font-size: 11px; fill: var(--muted); font-family: var(--f-mono); }
+svg .axis-title { font-size: 11.5px; fill: var(--ink-2); }
+svg .gridline { stroke: var(--grid); stroke-width: 1; }
+svg .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.82rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw.dot { width: 9px; height: 9px; border-radius: 50%; }
+.sw.ring { width: 9px; height: 9px; border-radius: 50%; background: transparent !important; border: 2px solid; }
+.sw.dash { background: none !important; border-top: 2px dashed; height: 0; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.75rem; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); gap: 0.9rem 1rem; }
+.grid-2 > *, .grid-4 > * { min-width: 0; }
+.mini-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin-bottom: 0.15rem; }
+.mini-sub { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { padding: 0.45rem 0.6rem; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; color: var(--ink-2); font-size: 0.8rem; white-space: nowrap; }
+td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.hl td { background: var(--accent-soft); }
+.heat td.cell { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.82rem; white-space: nowrap; }
+.heat td.best { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.heat th.sr-col { color: var(--accent); }
+.chip { display: inline-block; font-size: 0.72rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); white-space: nowrap; }
+.chip.local { border-color: var(--m-tsne); }
+.chip.global { border-color: var(--m-mds); }
+.chip.other { border-color: var(--muted); }
+
+.timeline { display: grid; gap: 0; border-left: 2px solid var(--rule); margin-left: 0.4rem; }
+.tl-item { position: relative; padding: 0 0 1.2rem 1.4rem; }
+.tl-item::before { content: ""; position: absolute; left: -7px; top: 0.55rem; width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 2px solid var(--ink-2); }
+.tl-item.now::before { background: var(--accent); border-color: var(--accent); }
+.tl-date { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); }
+.tl-title { font-weight: 700; }
+.tl-item p { margin: 0.15rem 0 0; font-size: 0.93rem; color: var(--ink-2); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 0.8rem 1rem; border-radius: 0 8px 8px 0; font-size: 0.95rem; }
+.callout p { margin: 0.3rem 0; }
+.note { border-left: 3px solid var(--rule); padding: 0.2rem 0 0.2rem 1rem; color: var(--ink-2); font-size: 0.95rem; }
+.formula { font-family: var(--f-mono); font-size: 0.95rem; background: var(--code-bg); border-radius: 8px; padding: 0.7rem 1rem; overflow-x: auto; white-space: nowrap; }
+
+.pipeline { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: stretch; }
+.pipeline .stage { flex: 1 1 12rem; border: 1px solid var(--rule); border-radius: 10px; padding: 0.8rem 0.9rem; background: var(--panel); min-width: 0; }
+.pipeline .stage .k { font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.pipeline .stage .t { font-weight: 700; margin: 0.1rem 0 0.3rem; }
+.pipeline .stage p { margin: 0; font-size: 0.85rem; color: var(--ink-2); line-height: 1.65; }
+.pipeline .arrow { align-self: center; color: var(--muted); font-family: var(--f-mono); }
+
+.slider-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; font-size: 0.9rem; }
+.slider-row input[type=range] { flex: 1 1 12rem; accent-color: var(--accent); }
+.big-readout { font-family: var(--f-mono); font-size: 0.95rem; color: var(--ink); }
+
+pre { background: var(--code-bg); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0.5rem 0; }
+pre code { background: none; padding: 0; }
+
+canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; touch-action: none; }
+
+.tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.65rem; font-size: 0.8rem; line-height: 1.55; box-shadow: 0 6px 20px rgba(0,0,0,0.12); max-width: 18rem; }
+.tip .row { display: flex; justify-content: space-between; gap: 0.8rem; align-items: center; }
+.tip .row .v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.tip .t { font-weight: 700; margin-bottom: 0.15rem; }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+
+@media (max-width: 560px) {
+  body { font-size: 15.5px; }
+  figure.panel { padding: 0.8rem 0.75rem 0.7rem; }
+  h2 { font-size: 1.4rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seg button { transition: background 0.15s, color 0.15s; }
+}
+</style>
+
+<main>
+<header class="top">
+  <div class="col">
+    <div class="eyebrow">Research notes · Dimensionality reduction</div>
+    <h1>From MADR to <span class="to">ScaleRank</span></h1>
+    <p class="lede">I revisited MADR, the multi-agent approach to dimensionality reduction I started in 2020, rebuilt the yardstick for comparing methods, and then prototyped a new method, ScaleRank: rank preservation at scales you can specify. This page explains, with figures, how I investigated the outlier problem found in the first version, rebuilt the loss function in a softmax form, scaled it to 70,000 points with a version that avoids N², and turned it into a browser app with Rust and WebAssembly, together with the results.</p>
+    <div class="meta">
+      <span>As of 20 November 2026</span>
+      <span>Research code: <a href="https://github.com/tsjshg/scalerank-web/tree/main/research" target="_blank" rel="noopener">scalerank-web/research</a></span>
+      <span>Benchmark: <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">github.com/tsjshg/drbench</a></span>
+      <span>App: <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a></span>
+      <span><a href="ja.html" hreflang="ja" lang="ja">日本語</a></span>
+    </div>
+  </div>
+</header>
+
+<section aria-labelledby="s-summary">
+  <div class="col">
+    <h2 id="s-summary" class="sr-only">Summary</h2>
+    <div class="summary">
+      <div><div class="k">What was done</div><p>Re-read the earlier attempts and built <b>drbench</b>, a benchmark framework that compares 8 datasets × 8 methods on the same metrics. Prototyped a new method and turned it into a version that runs on 70,000 points and a browser app.</p></div>
+      <div><div class="k">What was found</div><p>Existing methods trade off being strong locally against being strong globally; no method wins at every scale.</p></div>
+      <div><div class="k">New method</div><p><span class="sr">ScaleRank</span> lets you specify the scales to preserve with γ. The current softmax version (γ=1) produced, on all 8 datasets, embeddings that no existing method beats on both local and global measures. Tuned t-SNE and UMAP (30 settings) did not beat it on both either.</p></div>
+      <div><div class="k">Open issues</div><p>On local structure alone, t-SNE is still ahead, and the gap widens at 70,000 points. There are many outliers. Most of the individual components already exist in prior work, and comparisons with multi-scale t-SNE and DREAMS are needed.</p></div>
+    </div>
+    <nav class="toc" aria-label="Contents" style="margin-top:1.6rem">
+      <div class="eyebrow">Contents</div>
+      <ol>
+        <li><a href="#history">History</a></li>
+        <li><a href="#qscore">How to read the 2022 results</a></li>
+        <li><a href="#drbench">Building a yardstick: drbench</a></li>
+        <li><a href="#baselines">How existing methods perform</a></li>
+        <li><a href="#idea">The idea behind ScaleRank</a></li>
+        <li><a href="#proto">Where the first version stumbled</a></li>
+        <li><a href="#outliers">What the first version's outliers really are</a></li>
+        <li><a href="#gap">Why it loses to t-SNE on blobs</a></li>
+        <li><a href="#softmax">Switching to a softmax loss</a></li>
+        <li><a href="#results">Results of the current version</a></li>
+        <li><a href="#tuned">Comparison with tuned t-SNE and UMAP</a></li>
+        <li><a href="#stability">Is the map determined by the data?</a></li>
+        <li><a href="#prior">Relation to prior work</a></li>
+        <li><a href="#scale">An N²-free version and 70,000 points</a></li>
+        <li><a href="#app">The Rust version and the browser app</a></li>
+        <li><a href="#caveats">Caveats and next steps</a></li>
+        <li><a href="#repro">How to reproduce</a></li>
+      </ol>
+    </nav>
+  </div>
+</section>
+
+<!-- ============================================================ history -->
+<section id="history" aria-labelledby="h-history">
+  <div class="col sec-head"><span class="eyebrow">Background</span><h2 id="h-history">History</h2></div>
+  <div class="col">
+    <p>To build an alternative to t-SNE and UMAP, I have been experimenting since 2020 with one idea: treat each data point as an agent and decide the layout by moving the agents according to local rules. About 40 notebooks were left in the folder.</p>
+    <div class="timeline" role="list">
+      <div class="tl-item" role="listitem"><div class="tl-date">Early 2020</div><div class="tl-title">Particle swarm (PSO) style</div><p>Each point has a velocity, is attracted to similar points and avoids dissimilar ones.</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">Summer–autumn 2020</div><div class="tl-title">Cellular-automaton MADR2d → continuous-space version</div><p>On a grid, points move one cell at a time, using agreement with their neighbourhood as their satisfaction. Later, in continuous space, two rules: move towards the original neighbours (harmonic) and move away from points that are not neighbours (escape).</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">Early 2021</div><div class="tl-title">Varying the move radius with local density (AROB presentation)</div><p>A note reads: "Perhaps each instance should optimise some objective function." The turning point from rules to an objective function.</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">2022</div><div class="tl-title">Optimising the co-ranking Q score directly</div><p>Implemented the Q score, which measures rank discrepancies, in Rust, and optimised moves of 30 random points at a time with differential evolution (DE).</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">26 October 2026</div><div class="tl-title">Restart: drbench and the first version of ScaleRank</div><p>Built the yardstick first, then prototyped ScaleRank on top of it with a triplet loss. Investigated the cause of the outliers.</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">27 October 2026</div><div class="tl-title">To a softmax loss</div><p>Switched to a loss that compares one neighbour against 20 non-neighbours at once, and made it the default.</p></div>
+      <div class="tl-item" role="listitem"><div class="tl-date">27 October 2026</div><div class="tl-title">70,000 points and the browser</div><p>Built a version without the N² rank table, rewrote it in Rust, and released it as an app that keeps the data inside the browser.</p></div>
+      <div class="tl-item now" role="listitem"><div class="tl-date">20 November 2026</div><div class="tl-title">Is the map determined by the data?</div><p>Measured how much the map changes with the seed and the row order.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ qscore -->
+<section id="qscore" aria-labelledby="h-qscore">
+  <div class="col sec-head"><span class="eyebrow">Past evaluation</span><h2 id="h-qscore">How to read the 2022 results</h2></div>
+  <div class="col">
+    <p>In the final 2022 results, MADR beat the other methods by a wide margin on the Q score. In the same notebook, however, a local score restricted to near ranks (k=5) almost reverses the ranking.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">Overall Q score (lower is better)</div><div class="mini-sub">Pollen data. Sum of rank discrepancies over all point pairs</div><svg class="chart" id="fig-q-global" role="img" aria-label="Bar chart of the overall Q score"></svg></div>
+        <div><div class="mini-title">Local score at k=5 (lower is better)</div><div class="mini-sub">Looking only at ranks up to the 5th nearest</div><svg class="chart" id="fig-q-local" role="img" aria-label="Bar chart of the local score at k=5"></svg></div>
+      </div>
+      <figcaption><b>Figure 1.</b> Numbers from the 2022 results-summary notebook. MADR ranks first overall but loses heavily to t-SNE and UMAP locally.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>The reason lies in how the Q score is defined. The Q score is the sum, over every point, of how far the ranks of all other points as seen from that point differ between the original space and the embedding. Discrepancies at far ranks count as much as those at near ranks, so in practice it is a <strong>measure of global structure</strong>. Optimise that measure directly and it is no surprise that you win on it.</p>
+    <div class="callout"><p><b>Lesson:</b> If you optimise the metric used for evaluation, the method will always look good on that metric. Before building a new method, you need to fix which metrics measure what.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ drbench -->
+<section id="drbench" aria-labelledby="h-drbench">
+  <div class="col sec-head"><span class="eyebrow">Benchmark</span><h2 id="h-drbench">Building a yardstick: drbench</h2></div>
+  <div class="col">
+    <p>So, before any new method, I built <b>drbench</b>, a framework for comparing methods under identical conditions. Datasets, methods and metrics are each registered, combinations are run automatically, and results are cached. All distances are Euclidean, and existing methods are called with their default settings.</p>
+  </div>
+  <div class="wide">
+    <div class="pipeline" aria-label="drbench processing pipeline">
+      <div class="stage"><div class="k">datasets</div><div class="t">8 datasets</div><p>3 synthetic (S-curve, hierarchical clusters, clusters of different density), digits, 4 scRNA-seq</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">methods</div><div class="t">8 methods + new method</div><p>PCA, MDS, t-SNE, UMAP, densMAP, PaCMAP, TriMap, random. Registering a single function adds a method</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">metrics</div><div class="t">Local, global, density, labels</div><p>Aggregated row by row without building an N×N matrix. Tests confirm agreement with sklearn and the earlier implementation</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="stage"><div class="k">report</div><div class="t">Figures and tables</div><p>R<sub>NX</sub>(K) curves, scatter plots, trade-off plots, summary tables</p></div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>The central metric: R<sub>NX</sub>(K)</h3>
+    <p>For each point, it measures how much the K nearest neighbours in the original space overlap with the K nearest neighbours in 2-D, rescaled so that a random layout scores 0 and a perfect match scores 1. Varying K from 1 to N shows, in a single curve, how well structure is preserved <strong>from local (small K) to global (large K)</strong>.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-rnx-concept" viewBox="0 0 640 210" role="img" aria-label="Diagram of K-nearest-neighbour agreement"></svg>
+      <figcaption><b>Figure 2.</b> The K=5 neighbours of point i. Of the 5 neighbours in the original space (left), 3 are also among the 5 nearest neighbours in 2-D (right). Averaging this agreement rate over all points and plotting it against K gives R<sub>NX</sub>(K).</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Type</th><th>What it measures</th></tr></thead>
+        <tbody>
+          <tr><td><code>R_NX@10</code></td><td><span class="chip local">local</span></td><td>Neighbourhood preservation at K=10 (random = 0, perfect = 1)</td></tr>
+          <tr><td><code>AUC_RNX</code></td><td><span class="chip local">mostly local</span></td><td>Area under R<sub>NX</sub> over all K, weighted by 1/K</td></tr>
+          <tr><td><code>trust@10</code> / <code>cont@10</code></td><td><span class="chip local">local</span></td><td>Whether false neighbours have crept in / whether true neighbours have been lost</td></tr>
+          <tr><td><code>distance correlation</code></td><td><span class="chip global">global</span></td><td>Rank correlation (Spearman) of the distances over all point pairs</td></tr>
+          <tr><td><code>density correlation</code></td><td><span class="chip other">density</span></td><td>Whether each point's 10-NN radius (local density) is preserved</td></tr>
+          <tr><td><code>kNN accuracy</code></td><td><span class="chip other">labels</span></td><td>10-NN classification accuracy in 2-D; how well the classes separate</td></tr>
+          <tr><td><code>outlier fraction</code></td><td><span class="chip other">appearance</span></td><td>Fraction of points whose 10-NN radius in 2-D exceeds 3 times the median</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col">
+    <div class="note"><p><b>A bug found along the way.</b> annoy, the library PaCMAP and TriMap use for neighbour search, was broken on this Mac. Asked for 5 neighbours, it returned only one, and TriMap returned near-random results <strong>without raising an error</strong> (kNN accuracy of 23% on digits). PaCMAP was switched to faiss, TriMap was fixed to receive exact neighbours, and a test was added to detect a recurrence.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ baselines -->
+<section id="baselines" aria-labelledby="h-baselines">
+  <div class="col sec-head"><span class="eyebrow">Existing methods</span><h2 id="h-baselines">How existing methods perform</h2></div>
+  <div class="col">
+    <p>The R<sub>NX</sub>(K) curves clearly separate the scales at which existing methods do well. t-SNE is highest at small K and is overtaken by MDS and PCA once K exceeds about 50.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Dataset:</span><div class="seg" id="rnx-ds" role="group" aria-label="Switch dataset"></div></div>
+      <svg class="chart" id="fig-rnx" role="img" aria-label="R_NX(K) curves"></svg>
+      <div class="legend" id="fig-rnx-legend"></div>
+      <figcaption><b>Figure 3.</b> R<sub>NX</sub>(K). The horizontal axis is logarithmic; further right is more global. Hover over the chart to see each method's value.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>Across all 8 datasets too, the top method differs between local and global metrics. Switching the metric in the table below shows that t-SNE is strong locally and MDS / PCA are strong globally.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Metric:</span><div class="seg" id="heat-metric" role="group" aria-label="Switch metric"></div></div>
+      <div class="table-wrap"><table class="heat" id="heat-table"></table></div>
+      <figcaption><b>Figure 4.</b> Mean over 3 seeds. Within each row, darker is better and the underline marks the row's best value. The three rightmost columns are ScaleRank (the current version at γ=1 and γ=0, and the first version at γ=1).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ idea -->
+<section id="idea" aria-labelledby="h-idea">
+  <div class="col sec-head"><span class="eyebrow">New method</span><h2 id="h-idea">The idea behind ScaleRank</h2></div>
+  <div class="col">
+    <p>Existing methods carry an implicit, internal choice of which scales to preserve. ScaleRank makes that choice explicit as a <strong>user-specified distribution p(K)</strong> and directly optimises neighbourhood preservation weighted by that distribution.</p>
+    <h3>Thinking in terms of a single triplet</h3>
+    <p>Fix a point i and a neighbourhood size K. In the original space, there are points j among i's top-K neighbours and points m that are not. In 2-D, <b>the triplet is correct if j is closer to i than m is</b>. Draw K from p(K), draw j and m, and if the triplet is wrong, pull i and j together and push i and m apart. The first version used this triplet as the unit of the loss. The current version draws 20 m's at once (see below).</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-triplet" viewBox="0 0 640 230" role="img" aria-label="Diagram of a triplet"></svg>
+      <figcaption><b>Figure 5.</b> The triplet (i, j, m). j, which lies within i's top-K neighbourhood in the original space (dotted circle), is pulled towards i, and m, which lies outside it, is pushed away. p(K) determines which K is drawn.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>The knob is γ</h3>
+    <p>If p(K) is proportional to K<sup>−γ</sup>, then γ=1 concentrates the weight on small K (local-leaning; the same weighting as AUC_RNX), while γ=0 gives every K the same weight (global-leaning). Moving the γ slider changes which scales receive the effort.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="slider-row">
+        <label for="gamma">γ</label>
+        <input type="range" id="gamma" min="0" max="2" step="0.1" value="1">
+        <span class="big-readout" id="gamma-readout"></span>
+      </div>
+      <svg class="chart" id="fig-profile" role="img" aria-label="Bar chart of the scale distribution"></svg>
+      <figcaption><b>Figure 6.</b> Share of the weight assigned to each range of K on digits (N=1797). Between γ=1 and 1.5, the share for K≤10 jumps from 36% to 78%. Hover over a bar to see its value.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ proto -->
+<section id="proto" aria-labelledby="h-proto">
+  <div class="col sec-head"><span class="eyebrow">First version</span><h2 id="h-proto">Where the first version stumbled</h2></div>
+  <div class="col">
+    <h3>Not an optimisation failure, but a biased surrogate</h3>
+    <p>Even at γ=1, the first version did not reach t-SNE on local metrics (R<sub>NX</sub>@10 on digits: 0.44 vs 0.58). So I scored the embeddings of existing methods with ScaleRank's own objective function. If t-SNE scored lower, the optimisation would not be working.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">Scored with ScaleRank's objective (γ=1, digits, lower is better)</div>
+      <svg class="chart" id="fig-objective" role="img" aria-label="Bar chart of scores under the objective function"></svg>
+      <figcaption><b>Figure 7.</b> The first version of ScaleRank scores lowest. In other words, the optimisation succeeds, and the objective function itself prefers a different layout from t-SNE's.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>The cause lay in how the objective function was built. Triplet correctness counts a distant non-neighbour being slightly out of order just as heavily, but R<sub>NX</sub>(K) only cares about <strong>points that intrude into the top K in 2-D</strong>. So, for some of the triplets, I chose m from points that are currently close to i in 2-D but are not true neighbours (hard negatives).</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">R<sub>NX</sub>@10 (digits)</div><svg class="chart" id="fig-hard-rnx" role="img" aria-label="Effect of hard negatives on R_NX@10"></svg></div>
+        <div><div class="mini-title">AUC_RNX (digits)</div><svg class="chart" id="fig-hard-auc" role="img" aria-label="Effect of hard negatives on AUC"></svg></div>
+      </div>
+      <figcaption><b>Figure 8.</b> Introducing hard negatives improved the local metrics substantially.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <div class="note"><p><b>Another bug.</b> Right after hard negatives were introduced, the results were <strong>exactly the same</strong> whether their fraction was 0.3, 0.6 or 0.9. It turned out that the code filling the rank table was writing into a NumPy copy, so the rank table stayed all zeros. Hard negatives had never been used at all. The improvement above appeared after the fix.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ outliers -->
+<section id="outliers" aria-labelledby="h-outliers">
+  <div class="col sec-head"><span class="eyebrow">Investigation 1</span><h2 id="h-outliers">What the first version's outliers really are</h2></div>
+  <div class="col">
+    <p>In the first version's scatter plots, points were scattered around the clusters. Counting as outliers the points whose 10-NN radius in 2-D exceeds 3 times the median, the first version produced far more of them than t-SNE.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr);opacity:.45"></span>First version γ=1</span>
+        <span><span class="sw dot" style="background:var(--c7)"></span>First version + mitigation (local scaling)</span>
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>Current version γ=1</span>
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE</span>
+        <span><span class="sw dot" style="background:var(--m-mds)"></span>MDS</span>
+      </div>
+      <svg class="chart" id="fig-outfrac" role="img" aria-label="Outlier fraction"></svg>
+      <figcaption><b>Figure 9.</b> Outlier fraction (mean over 3 seeds). t-SNE stays below 1% on every dataset. Datasets on which even MDS (a method that preserves distances as they are) produces outliers presumably contain genuinely isolated points.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>Two kinds of outliers</h3>
+    <ul>
+      <li><b>The outliers on Pollen</b> were isolated in the original space as well (10-NN radius 3.9 times the median). MDS also produces 16% there. To some extent, these are <strong>faithful</strong>.</li>
+      <li><b>The outliers on hierarchical clusters (hier_blobs)</b> had ordinary density in the original space (1.06 times). They are <strong>artefacts</strong> created by the method.</li>
+    </ul>
+    <h3>The culprits: hard negatives and anti-hubs</h3>
+    <p>Turning hard negatives off reduced the outliers on hier_blobs from 23% to 2%. The points that became outliers had something in common: they were <strong>points that hardly appear in any other point's neighbour list</strong>, so-called anti-hubs. In high-dimensional data, some points become neighbours of many points (hubs), while large numbers of points become almost nobody's neighbour (anti-hubs). This is called hubness.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <svg class="chart" id="fig-hub" viewBox="0 0 640 220" role="img" aria-label="Diagram of a hub and an anti-hub"></svg>
+      <figcaption><b>Figure 10.</b> An arrow means "this point's nearest neighbour is that point". The hub in the centre is pointed to by many points, but the anti-hub on the right is pointed to by none. Neighbour relations are not symmetric.</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Display:</span><div class="seg" id="hier-mode" role="group" aria-label="Switch highlighting"></div></div>
+      <div class="grid-4" id="fig-hier"></div>
+      <div class="legend" id="fig-hier-legend"></div>
+      <figcaption><b>Figure 11.</b> hier_blobs (3 top-level clusters × 4 sub-clusters, 50 dimensions). Colour shows the top-level cluster. With "Highlight anti-hubs", points that appear in other points' 10-NN lists at most twice in the original space are marked with a black ring. In the first version (leftmost), the anti-hubs are scattered outside the clusters; in the current version (third), they mostly stay inside.</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">Probability that an anti-hub becomes an outlier (first version)</div>
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>With hard negatives (0.3)</span>
+        <span><span class="sw dot" style="background:var(--m-random)"></span>Without hard negatives</span>
+      </div>
+      <svg class="chart" id="fig-antihub" role="img" aria-label="Probability that an anti-hub becomes an outlier"></svg>
+      <figcaption><b>Figure 12.</b> Fraction of each dataset's anti-hubs (N10 ≤ 2) that became outliers. The number in brackets is the strength of hubness (the skewness of N10). The stronger the hubness, the larger the effect of hard negatives. Pollen does not change when hard negatives are turned off (because those cells are genuinely isolated).</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>What forces are at work</h3>
+    <p>I decomposed the force each point receives during training into the individual terms of the gradient and measured the component pointing outwards from the centre of the point's own cluster (first version, hier_blobs, epoch 700).</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-sr)"></span>Points that end up as outliers</span>
+        <span><span class="sw dot" style="background:var(--c1)"></span>All other points</span>
+      </div>
+      <svg class="chart" id="fig-forces" role="img" aria-label="Force decomposition"></svg>
+      <figcaption><b>Figure 13.</b> Positive values point outwards, negative values inwards. Outliers receive only about 1/3 of the pull from being some other point's neighbour, and about twice the push from hard negatives when they are the anchor.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>The net force on outliers points inwards, but it is weaker than for the other points (−0.013 vs −0.038). As the cluster cores shrink in the later part of training (distance from the centre 3.5 → 0.6), these points are <strong>left behind rather than pushed out</strong>. The root cause is the asymmetry of neighbour relations; t-SNE counteracts it with per-point bandwidths (perplexity calibration).</p>
+    <h3>Remedies tried</h3>
+  </div>
+  <div class="wide">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Remedy</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Changing the optimiser (per-point Adam / shared Adam / SGD)</td><td>No change</td></tr>
+          <tr><td>Hard positives (preferentially pulling true neighbours that are far away)</td><td>Worse on every dataset</td></tr>
+          <tr><td>Weighting hard negatives by rank (the same form as trustworthiness)</td><td>No change</td></tr>
+          <tr><td>One-sided hard negatives (the intruding point m is not moved)</td><td>Only a slight reduction (23.8% → 20.4%)</td></tr>
+          <tr><td>Decaying hard negatives during training</td><td>Fewer outliers on blobs, but the improvement on digits is lost</td></tr>
+          <tr><td>Using locally scaled ranks for all K</td><td>Outliers disappear, but distance correlation on Pollen collapses from 0.86 to −0.02</td></tr>
+          <tr><td>Local scaling for small K (≤30) only</td><td>Outliers 16% → 10–11%. A mitigation, not a solution (kept as an option)</td></tr>
+          <tr class="hl"><td><b>Switching to a softmax loss and dropping hard negatives</b></td><td><b>Outliers 16% → 9%, and local metrics also improve on average. Made the default (see the section after next)</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ gap -->
+<section id="gap" aria-labelledby="h-gap">
+  <div class="col sec-head"><span class="eyebrow">Investigation 2</span><h2 id="h-gap">Why it loses to t-SNE on blobs</h2></div>
+  <div class="col">
+    <p>In the first version, the gap in local metrics was largest on the two synthetic datasets built from high-dimensional Gaussians (0.24 vs 0.34 on hier_blobs, 0.31 vs 0.41 on density_blobs). I investigated with a version whose objective function is concentrated around K≈10 (a band profile), putting it on the same footing as t-SNE.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Dataset</th><th>Method</th><th class="n">R<sub>NX</sub>@10</th><th class="n">Objective (lower is better)</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3">hier_blobs</td><td>t-SNE</td><td class="n">0.344</td><td class="n">0.0364</td></tr>
+            <tr><td>ScaleRank (with hard negatives)</td><td class="n">0.233</td><td class="n">0.0425</td></tr>
+            <tr class="hl"><td>ScaleRank (no hard negatives, 4× budget)</td><td class="n">0.333</td><td class="n">0.0332</td></tr>
+            <tr><td rowspan="2">density_blobs</td><td>t-SNE</td><td class="n">0.408</td><td class="n">0.1019</td></tr>
+            <tr><td>ScaleRank (no hard negatives, 4× budget)</td><td class="n">0.327</td><td class="n">0.0839</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 1.</b> The objective function is a band profile concentrated around K=10 (k0=10).</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><b>hier_blobs:</b> With hard negatives, ScaleRank <strong>loses to t-SNE on its own objective function</strong>. In other words, hard negatives distort the objective itself. Without them, it nearly matches t-SNE and also beats it on the objective.</li>
+      <li><b>density_blobs:</b> It beats t-SNE on the objective function but loses on R<sub>NX</sub>@10. A mismatch between the objective and the evaluation metric still remains.</li>
+      <li><b>Allocation across scales:</b> By design, γ=1 also puts a lot of weight on K&gt;10 (Figure 6). On digits, concentrating on K=10 gives an R<sub>NX</sub>@10 of 0.599, above t-SNE (0.583).</li>
+    </ul>
+    <div class="callout">
+      <p><b>The hard-negative dilemma.</b> On manifold-like data such as digits, hard negatives are essential (R<sub>NX</sub>@10 0.44 → 0.54), but on high-dimensional data with strong hubness they create outliers and distort the objective function. The fixed rule of "probability 0.3, within the top 2K" helped on some datasets and did harm on others.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ softmax (new) -->
+<section id="softmax" aria-labelledby="h-softmax">
+  <div class="col sec-head new"><span class="eyebrow">Current version</span><h2 id="h-softmax">Switching to a softmax loss<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>Rather than tuning hard negatives to each dataset, I asked whether the shape of the loss function could produce the same effect. For one neighbour j, Q non-neighbours m are drawn together and the following loss is used (the same form as InfoNCE in contrastive learning).</p>
+    <div class="formula">loss = −log( q<sub>ij</sub> / ( q<sub>ij</sub> + Σ<sub>m</sub> q<sub>im</sub> ) )&emsp;&emsp;q = 1 / (1 + d²)</div>
+    <ul>
+      <li><b>With Q=1, it is the same formula as the first version's triplet loss</b> (agreement confirmed by a test).</li>
+      <li>As Q increases, <strong>the closer m currently is to i in 2-D, the larger q<sub>im</sub> becomes and the stronger the push</strong>. Although m is simply drawn uniformly, non-neighbours that have intruded nearby automatically have a stronger effect: a smooth version of hard negatives.</li>
+      <li>It is also known that the larger Q is, the closer the result gets to t-SNE (Damrich et al. 2023). Q becomes a second "local or global" knob alongside γ.</li>
+    </ul>
+    <h3>Sweeping Q</h3>
+    <p>On the 4 datasets used for tuning so far, starting from the setting without hard negatives, I increased Q from 1 → 5 → 20 → 100.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend" id="fig-qsweep-legend"></div>
+      <div class="grid-2">
+        <div><div class="mini-title">Local R<sub>NX</sub>@10 (higher is better)</div><svg class="chart" id="fig-qsweep-rnx" role="img" aria-label="Q and the local metric"></svg></div>
+        <div><div class="mini-title">Global distance correlation (higher is better)</div><svg class="chart" id="fig-qsweep-sp" role="img" aria-label="Q and the global metric"></svg></div>
+      </div>
+      <figcaption><b>Figure 14.</b> γ=1, no hard negatives, mean over 2 seeds. Q=1 is the triplet loss; Q=5 and 20 use 32 groups per point, and Q=100 uses 4 groups. The × at the left edge is the value for the first version (triplets + hard negatives). Local rises almost monotonically with Q, while global falls slightly.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>With Q=20 and 8 groups per point, the quality was almost the same as with 32 groups at 1/4 of the computation. I made this the <strong>current default</strong> (<code>n_neg=20, per_point=8, hard=0</code>). The table below compares it over 8 datasets × 3 seeds.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th class="n">Outliers</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">Global distance correlation</th><th class="n">Density correlation</th><th class="n">Time</th></tr></thead>
+          <tbody id="mean-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 2.</b> Mean over 8 datasets × 3 seeds (computed from the drbench results). Outliers are halved compared with the first version, and local also rises on average. Global falls slightly but remains far above t-SNE.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>Local drops on low-dimensional manifolds</h3>
+    <p>Not every dataset improved. On s_curve (a 2-D surface embedded in 3-D), local fell from 0.830 to 0.797. A simple test of recovering a uniformly random 2-D square shows the same tendency clearly.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">Recovering a uniform 2-D square (300 points), R<sub>NX</sub>@10</div>
+      <svg class="chart" id="fig-square" role="img" aria-label="Recovering a 2-D square"></svg>
+      <figcaption><b>Figure 15.</b> Mean over 2 seeds, random initialisation. The current version plateaus at around 0.80, even with longer training or PCA initialisation. The softmax loss helps on high-dimensional data with strong hubness but loses a little on data of low intrinsic dimension.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ results -->
+<section id="results" aria-labelledby="h-results">
+  <div class="col sec-head new"><span class="eyebrow">Results</span><h2 id="h-results">Results of the current version<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>I ran the current version with γ = 1 / 0.5 / 0 on 8 datasets × 3 seeds and compared it with the 7 existing methods. With local (R<sub>NX</sub>@10) on the vertical axis and global (distance correlation) on the horizontal axis, γ=1 and 0.5 sit, <strong>on all 8 datasets, where no existing method beats them on both axes</strong>. γ=0 was beaten by an existing method on two datasets (PaCMAP on density_blobs, TriMap on s_curve).</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">ScaleRank:</span><div class="seg" id="trade-mode" role="group" aria-label="Switch which version is shown"></div></div>
+      <div class="legend" id="fig-trade-legend"></div>
+      <div class="grid-4" id="fig-trade"></div>
+      <figcaption><b>Figure 16.</b> Up and to the right is better. The solid red line is the path of the current version as γ goes 1 → 0.5 → 0; the dashed red line (hollow points) is the first version. Hover over a point to see its values.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <h3>Behaviour as γ is lowered (new experiment)</h3>
+    <p>Averaged over the 8 datasets, the current version's whole path has <strong>shifted towards local</strong>. At γ=1 it is more local than the first version, but even at γ=0 global does not rise as far as in the first version (distance correlation 0.863 vs 0.906). This is probably because the tendency of many negatives to pull the result towards t-SNE persists even when γ is lowered. Also, in both versions, <strong>the lower γ is, the more outliers there are</strong>.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-2">
+        <div><div class="mini-title">Trade-off averaged over 8 datasets</div><svg class="chart" id="fig-mean-trade" role="img" aria-label="Trade-off averaged over 8 datasets"></svg></div>
+        <div><div class="mini-title">γ and outlier fraction (mean over 8 datasets)</div><svg class="chart" id="fig-gamma-out" role="img" aria-label="γ and outliers"></svg></div>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--m-sr)"></span>Current version (softmax)</span>
+        <span><span class="sw dash" style="border-color:var(--m-sr)"></span>First version (triplets + hard)</span>
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE</span>
+        <span><span class="sw dot" style="background:var(--m-mds)"></span>MDS</span>
+        <span><span class="sw dot" style="background:var(--m-pacmap)"></span>PaCMAP</span>
+      </div>
+      <figcaption><b>Figure 17.</b> Left: mean local and global scores. The current version's path lies above and to the left of the first version's (more local). Right: lowering γ increases outliers in both versions.</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Dataset:</span><div class="seg" id="rnx2-ds" role="group" aria-label="Switch dataset"></div></div>
+      <svg class="chart" id="fig-rnx2" role="img" aria-label="R_NX curves for ScaleRank"></svg>
+      <div class="legend" id="fig-rnx2-legend"></div>
+      <figcaption><b>Figure 18.</b> ScaleRank seen through R<sub>NX</sub>(K) curves. γ=1 is close to t-SNE at small K and well above t-SNE at large K. γ=0 takes a shape close to MDS.</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="mini-title">Comparison on Pollen</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">Global distance correlation</th><th class="n">AUC_RNX</th></tr></thead>
+          <tbody id="pollen-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 3.</b> ScaleRank γ=1 is close to t-SNE locally and on a par with MDS globally.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>In the scatter plots, t-SNE separates the clusters cleanly but does not preserve their positions relative to one another. MDS preserves those positions, but the clusters overlap. ScaleRank sits in between: it separates the clusters while trying to keep their arrangement. The scatter around clusters that stood out in the first version is reduced in the current version.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-4" id="fig-digits"></div>
+      <div class="legend" id="fig-digits-legend"></div>
+      <figcaption><b>Figure 19.</b> digits (seed 0). Colour shows the digit class; 8 and 9 are triangles. Hover over a point to see its class.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ tuned -->
+<section id="tuned" aria-labelledby="h-tuned">
+  <div class="col sec-head new"><span class="eyebrow">Investigation 3</span><h2 id="h-tuned">Comparison with tuned t-SNE and UMAP<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>Even if t-SNE and UMAP at their default settings do not beat ScaleRank, tuning their parameters might bring them up to where ScaleRank is. So I ran 13 t-SNE settings, perplexity {5, 30, 100, 300} × exaggeration {1, 2, 4} plus random initialisation, and 17 UMAP settings, n_neighbors {5, 15, 50, 200} × min_dist {0, 0.1, 0.5, 0.99} plus random initialisation, on 8 datasets × 3 seeds.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="legend">
+        <span><span class="sw dot" style="background:var(--m-tsne)"></span>t-SNE (13 settings)</span>
+        <span><span class="sw dot" style="background:var(--m-umap)"></span>UMAP (17 settings)</span>
+        <span><span class="sw" style="background:var(--m-sr)"></span>ScaleRank (γ=1, 0.5, 0)</span>
+      </div>
+      <div class="grid-4" id="fig-tuned"></div>
+      <figcaption><b>Figure 20.</b> Up and to the right is better. The small dots are the individual settings of tuned t-SNE and UMAP; the red line is ScaleRank's path as γ goes 1 → 0.5 → 0. Hover over a point to see the setting.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li><strong>On no dataset did any of the 30 settings beat ScaleRank on both local and global measures.</strong> The same holds when the best setting is chosen for each dataset.</li>
+      <li>Raising t-SNE's perplexity raises global (mean over 8 datasets 0.52 → 0.71) at the cost of local (0.543 → 0.415). Raising exaggeration lowers local sharply and also increases outliers.</li>
+      <li>For UMAP, raising n_neighbors leaves global plateauing at around 0.43, and min_dist has almost no effect.</li>
+      <li>The gaps are smallest on s_curve and density_blobs, where tuned t-SNE comes close to ScaleRank.</li>
+    </ul>
+    <div class="callout"><p><b>Caveat:</b> The global metric (rank correlation of distances) is close to the quantity ScaleRank optimises at small γ, namely the ranks of all points as seen from each point. t-SNE and UMAP were not designed to preserve distances in the first place, so part of the global gap comes from differing design goals. ScaleRank has not yet been compared with methods that aim at both local and global structure (next section).</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ stability -->
+<section id="stability" aria-labelledby="h-stability">
+  <div class="col sec-head new"><span class="eyebrow">Investigation 4</span><h2 id="h-stability">Is the map determined by the data?<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>t-SNE and UMAP can give a different result every time they run. Fixing the seed makes the picture repeat, but that only fixes the random numbers: shuffling the rows is enough to get a different picture. PCA, by contrast, always returns the same answer.</p>
+    <p>So I made maps of the same data with different seeds (0, 1, 2) and with the rows in different orders (3 permutations), and measured on the 8 datasets how well the maps agree with each other. Global agreement is the rank correlation of distances in the two maps; local agreement is the share of each point's 10 nearest neighbours that the two maps share. Both are 1 for identical maps.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th class="n">Global, seed</th><th class="n">Global, row order</th><th class="n">Local, seed</th><th class="n">Local, row order</th></tr></thead>
+          <tbody id="stability-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 8.</b> Agreement between maps (mean over the 8 datasets). Global: rank correlation of distances; local: 10-NN agreement. Row order was tested for some methods only (– = not measured). For ScaleRank the seed columns are the original version and the row-order columns the Rust version.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>Only PCA and MDS give exactly the same map every time. drbench's MDS starts from classical MDS (an eigendecomposition), so it always returns the same answer.</li>
+      <li>For the stochastic methods, <strong>changing the row order changes the result about as much as changing the seed</strong>. With the seed fixed, shuffling the rows still gives a different map.</li>
+      <li>The global layout is set mostly by the initialisation. With random initialisation the rank correlation of distances drops to 0.71 for t-SNE and 0.49 for UMAP (in line with Kobak &amp; Linderman 2021). ScaleRank γ=1, which starts from PCA, reaches 0.98: together with TriMap, the most stable of the nonlinear methods.</li>
+      <li>Locally, every method swaps 20–50% of each point's 10 nearest neighbours from run to run. ScaleRank γ=1 is about as stable as t-SNE, and more stable than UMAP, PaCMAP and TriMap.</li>
+      <li>The points whose neighbours change are largely the points whose neighbours in the data the map fails to keep. Per point, the rank correlation between run-to-run agreement and neighbours kept is <span class="js-rho" data-m="tsne"></span> for t-SNE, <span class="js-rho" data-m="umap:init=pca"></span> for UMAP (PCA initialisation) and <span class="js-rho" data-m="scalerank:gamma=1.0"></span> for ScaleRank γ=1.</li>
+      <li>γ=0 is unstable: local agreement is about 0.6, and on density_blobs global agreement is also about 0.6.</li>
+    </ul>
+    <div class="callout"><p><b>What follows:</b> drawing the random numbers from each point's values rather than its row number would make the map fully deterministic, independent of the row order too. But that only settles on one way of making random numbers; it does not make the local variation a property of the data. What can be claimed, I think, is this: the global layout is determined by the data (almost independent of the seed and the row order), and the local variation is measured and shown on the map.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ prior -->
+<section id="prior" aria-labelledby="h-prior">
+  <div class="col sec-head new"><span class="eyebrow">Literature</span><h2 id="h-prior">Relation to prior work<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>To find out how much of ScaleRank is new, I surveyed related work. In short, <strong>most of the individual components are already known</strong>.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Component of ScaleRank</th><th>Prior work</th></tr></thead>
+          <tbody>
+            <tr><td>Moving between local and global with a single knob</td><td>λ in NeRV (Venna et al. 2010), τ in Local MDS (Chen &amp; Buja 2009), exaggeration in t-SNE (Böhm et al. 2022), the number of negatives in contrastive learning (Damrich et al. 2023), λ in DREAMS (Kury et al. 2026)</td></tr>
+            <tr><td>Preserving all scales uniformly in log K (equivalent to γ=1)</td><td>Multi-scale SNE (Lee et al. 2015), multi-scale t-SNE (de Bodt et al. 2018, 2020)</td></tr>
+            <tr><td>Preserving ranks rather than distances</td><td>Non-metric MDS (Kruskal 1964), RankVisu (Lespinats et al. 2009), rank-preserving dimensionality reduction (Onclinx et al. 2010)</td></tr>
+            <tr><td>Triplet loss, InfoNCE and the Cauchy kernel</td><td>t-STE (van der Maaten &amp; Weinberger 2012), TriMap (Amid &amp; Warmuth 2019), Damrich et al. 2023</td></tr>
+            <tr><td>The R<sub>NX</sub> metric and its AUC on a logarithmic scale</td><td>Lee &amp; Verleysen 2009, Lee et al. 2015</td></tr>
+            <tr><td>Comparing on two axes: local (neighbour recall) and global (rank correlation of distances)</td><td>DREAMS (Kury, Kobak, Damrich; TMLR 2026)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 4.</b> The components of ScaleRank and the work that addressed them earlier.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>What may be new is the following combination: the user supplies an arbitrary scale distribution p(K); neighbourhood preservation weighted by it is the objective function; and the sampling rules (draw K from p, the positive from the top K and the negatives from outside it) and the triplet weights are derived from that objective. I found no publication that states this combination as such.</p>
+    <p>However, changing the scale weights of multi-scale t-SNE to follow p(K) is a straightforward extension. Unless experiments can show a difference from it, I consider the novelty weak. The next methods to compare against are multi-scale t-SNE reweighted by p(K), a sweep of the λ in DREAMS, and a sweep of the number of negatives in contrastive learning.</p>
+  </div>
+</section>
+
+<!-- ============================================================ scale -->
+<section id="scale" aria-labelledby="h-scale">
+  <div class="col sec-head new"><span class="eyebrow">Scale</span><h2 id="h-scale">An N²-free version and 70,000 points<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>Up to this point, ScaleRank kept a table of the ranks of all points as seen from each point (N × N), which limited it to about 10,000 points. So I dropped the rank table and built a version that optimises the same objective function using only structures of size O(N log N).</p>
+    <ul>
+      <li>Ranks 1–100 are found with exact k-nearest neighbours.</li>
+      <li>Larger ranks are estimated from random subsamples at several levels. The a-th nearest point in a subsample of size n corresponds to a rank of roughly a·N/(n+1) in the full data. This gives each point a "distance → rank" table.</li>
+      <li>Negatives are chosen from candidates redrawn uniformly at each epoch: the candidates are ranked with the table, and those whose rank exceeds K are used.</li>
+    </ul>
+    <p>Compared with the original version on 8 datasets × 3 seeds, the differences were within about ±0.01 on every metric (Table 5). Evaluation was also changed to estimate from only 2,000 rows for datasets of more than 10,000 points. Each metric is a mean of per-row values, so this estimate is unbiased.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>γ</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">Global distance correlation</th><th class="n">Density correlation</th><th class="n">kNN accuracy</th></tr></thead>
+          <tbody id="fast-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 5.</b> N²-free version − original version (mean over 8 datasets × 3 seeds). The closer to 0, the closer to the original version.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>Table 6 and Figure 21 show the results on all 70,000 points of MNIST and Fashion-MNIST (reduced to 50 dimensions with PCA).</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="controls"><span class="fig-sub">Dataset:</span><div class="seg" id="big-ds" role="group" aria-label="Switch dataset"></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">Global distance correlation</th><th class="n">Density correlation</th><th class="n">kNN accuracy</th><th class="n">Time</th></tr></thead>
+          <tbody id="big-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 6.</b> 70,000 points (seed 0, 10 threads). t-SNE is openTSNE and UMAP is umap-learn. The ScaleRank values are from the Rust version and are almost the same as the Python version's.</figcaption>
+    </figure>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="grid-4" id="fig-big"></div>
+      <div class="legend" id="fig-big-legend"></div>
+      <figcaption><b>Figure 21.</b> A random 5,000 of the 70,000 MNIST points. Colour shows the digit class; 8 and 9 are triangles.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <ul>
+      <li>Globally (distance correlation), ScaleRank is clearly higher than t-SNE and UMAP.</li>
+      <li>Locally (R<sub>NX</sub>@10), on the other hand, it weakens as N grows. On MNIST at γ=1, it was 0.27 at 10,000 points but 0.10 at 70,000 points: about a quarter of t-SNE (0.39) and about the same as UMAP.</li>
+    </ul>
+    <p>In Figure 21, ScaleRank γ=1 (neg_scale 0.5) keeps the digits apart, but each class breaks into small clumps, with many scattered points around them. γ=0 keeps the overall arrangement but lets the classes overlap.</p>
+    <h3>Why local weakens as N grows</h3>
+    <p>If the number of negatives Q stays fixed while N grows, the Q negatives stand in for an ever larger set of "all other points", and the repulsion becomes relatively weaker. This is a known property in contrastive learning (Damrich et al. 2023), and the behaviour approaches that of UMAP, which draws few negatives.</p>
+    <p>So I added a setting that multiplies the negative terms by a weight w = ((N−1−K)/Q)<sup>a</sup> (neg_scale = a). With a = 0.5, local roughly doubles (MNIST 0.10 → 0.20, Fashion-MNIST 0.12 → 0.20), but it still falls short of t-SNE. On small datasets the density correlation drops (0.66 → 0.48 on digits), so it is not the default.</p>
+    <p>On 10,000 MNIST points I also tried other settings. Raising γ lifts local to at most 0.36 (γ=2); 100 negatives give 0.35, and neg_scale 0.5 gives 0.36, against 0.28 for the default γ=1 and 0.45 for t-SNE. Four times as many groups per point, or 2,000 epochs instead of 800, change almost nothing (0.29).</p>
+  </div>
+</section>
+
+<!-- ============================================================ app -->
+<section id="app" aria-labelledby="h-app">
+  <div class="col sec-head new"><span class="eyebrow">Implementation</span><h2 id="h-app">The Rust version and the browser app<span class="badge">NEW</span></h2></div>
+  <div class="col">
+    <p>So that ScaleRank can be used without data leaving the browser, I rewrote it in Rust and made it into an app that runs in the browser via WebAssembly. For comparison, t-SNE and UMAP are included in the same Rust code and are computed only when the user asks for them. I also implemented approximate nearest neighbours (NN-descent), but with 50 dimensions and 70,000 points it was not faster than brute force (4.3 s on 10 threads), so brute force is used for now.</p>
+    <div class="callout"><p><b>App:</b> <a href="https://tsjshg.github.io/scalerank-web/" target="_blank" rel="noopener">tsjshg.github.io/scalerank-web</a> (code: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a>)</p></div>
+    <p>I checked with drbench that the Rust versions compute the same thing as the reference implementations (Table 7). t-SNE is compared with openTSNE, UMAP with umap-learn (PCA initialisation), and ScaleRank with the Python version.</p>
+  </div>
+  <div class="wide">
+    <figure class="panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rust version</th><th>Reference</th><th class="n">Local R<sub>NX</sub>@10</th><th class="n">AUC_RNX</th><th class="n">Global distance correlation</th><th class="n">Density correlation</th><th class="n">kNN accuracy</th><th class="n">Time (Rust / reference)</th></tr></thead>
+          <tbody id="ports-table"></tbody>
+        </table>
+      </div>
+      <figcaption><b>Table 7.</b> Rust version − reference (mean over 8 datasets × 3 seeds). The closer to 0, the more similar the results.</figcaption>
+    </figure>
+  </div>
+  <div class="col">
+    <p>The same holds at 70,000 points: R<sub>NX</sub>@10 is 0.386 for t-SNE (openTSNE 0.391) and 0.108 for UMAP (umap-learn 0.109). With 10 threads, the computation takes 28 s for t-SNE (openTSNE 64 s), 22 s for UMAP (35 s) and 44 s for ScaleRank (Python version 1,347 s).</p>
+    <p>The browser version is currently single-threaded and takes about 17 s for ScaleRank, 11 s for UMAP and 7 s for t-SNE on 6,000 points. At 20,000 points, ScaleRank takes about a minute; I plan to shorten this with multithreading.</p>
+  </div>
+</section>
+
+<!-- ============================================================ caveats -->
+<section id="caveats" aria-labelledby="h-caveats">
+  <div class="col sec-head"><span class="eyebrow">Summary</span><h2 id="h-caveats">Caveats and next steps</h2></div>
+  <div class="col">
+    <h3>Caveats</h3>
+    <ul>
+      <li>On local metrics alone, t-SNE remains first on every dataset (mean 0.543 vs 0.511 for the current version).</li>
+      <li>On low-dimensional manifolds (s_curve, the 2-D square), the current version scores lower locally than the first version.</li>
+      <li>Lowering γ to lean towards global structure increases outliers and does not reach the global scores of the first version.</li>
+      <li>Outliers are still far more frequent (8.8%) than with t-SNE (0.3%). Some are genuinely isolated points, but not all.</li>
+      <li>AUC_RNX measures something close to the γ=1 objective function, so the lead on it must be discounted. R<sub>NX</sub>@10 and distance correlation are not optimised directly.</li>
+      <li>Hyperparameters were tuned on digits, Pollen, hier_blobs and density_blobs. The 4 datasets not used for tuning showed the same tendencies.</li>
+      <li>At 70,000 points, local drops to about a quarter of t-SNE's. neg_scale roughly doubles it, but it still falls short.</li>
+      <li>Most of the individual components exist in prior work. ScaleRank has not yet been compared with multi-scale t-SNE reweighted by p(K) or with DREAMS.</li>
+      <li>The browser version is single-threaded, and ScaleRank takes about a minute on 20,000 points.</li>
+    </ul>
+    <h3>Candidate next steps</h3>
+    <ul>
+      <li><b>Estimate ranks in 2-D directly.</b> With Q negatives drawn, the rank of j can be estimated from the fraction of non-neighbours that are closer than j in 2-D. Penalising only when this exceeds K would optimise R<sub>NX</sub>(K) almost as it stands.</li>
+      <li><b>Vary Q with K.</b> Use fewer negatives when leaning global (large K) and more when leaning local. This may help with global scores falling short when γ is lowered.</li>
+      <li><b>Fix the asymmetry on the positive side.</b> As t-SNE does with per-point bandwidths, even out how strongly each point is pulled as a neighbour, so that anti-hubs also receive enough attraction.</li>
+      <li><b>Keep local quality at large N.</b> Set the default neg_scale according to N. Try a stage corresponding to t-SNE's early exaggeration.</li>
+      <li><b>Compare directly with prior work.</b> Add multi-scale t-SNE reweighted by p(K), a sweep of the λ in DREAMS and a sweep of the number of negatives in contrastive learning to drbench.</li>
+      <li><b>Make it faster in the browser.</b> Aim for 100,000 points with multithreading and SIMD. Add an FFT-based version of t-SNE.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ repro -->
+<section id="repro" aria-labelledby="h-repro">
+  <div class="col sec-head"><span class="eyebrow">Appendix</span><h2 id="h-repro">How to reproduce</h2></div>
+  <div class="col">
+    <p>Put the benchmark <a href="https://github.com/tsjshg/drbench" target="_blank" rel="noopener">tsjshg/drbench</a> next to <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>, whose <code>research/</code> folder holds the Python versions of ScaleRank and the research scripts; the commands below reproduce the results. The original 2020 pickle files are assumed to be in drbench's parent folder. Work up to November 2026 was done on drbench's <code>proto/scalerank</code> branch (tag <code>scalerank-prototype-2026-11</code>).</p>
+<pre><code>git clone https://github.com/tsjshg/drbench
+git clone https://github.com/tsjshg/scalerank-web
+cd drbench
+uv sync
+uv pip install -e ../scalerank-web/research           # registers ScaleRank as drbench methods
+uv pip install ../scalerank-web/crates/scalerank-py   # Rust versions (scalerank_rs, tsne_rs, umap_rs)
+R=../scalerank-web/research/scripts
+
+uv run python scripts/convert_legacy.py      # 2020 pickles → data/raw/*.npz
+uv run drbench run                           # existing methods (8 datasets × 3 seeds)
+
+# current version (softmax loss, default settings)
+uv run drbench run -m scalerank:gamma=1.0 scalerank:gamma=0.5 scalerank:gamma=0.0
+# first version (triplets + hard negatives)
+uv run drbench run -m "scalerank:gamma=1.0,hard=0.3,n_neg=1,per_point=32"
+uv run drbench report                        # figures and tables in results/report/
+
+# investigation scripts
+uv run python $R/sweep_scalerank.py -d digits --grid n_neg=1,5,20 hard=0.0
+uv run python $R/score_under_objective.py digits --gammas 1
+uv run python $R/diagnose_outliers.py hier_blobs -m tsne "scalerank:gamma=1.0"
+uv run python $R/force_decomposition.py hier_blobs --epochs 700
+uv run python $R/plot_scale_profile.py
+
+# comparison with tuned t-SNE / UMAP (after drbench run with 30 settings × 8 datasets × 3 seeds)
+uv run python $R/compare_tuned_baselines.py
+
+# N²-free version and Rust version
+uv run drbench run -m scalerank_fast:gamma=1.0 scalerank_fast:gamma=0.5 scalerank_fast:gamma=0.0
+uv run drbench run -m scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 tsne_rs umap_rs umap:init=pca
+uv run python $R/compare_fast.py
+uv run python $R/compare_rs.py
+uv run drbench run -d mnist70k fmnist70k -s 0 -m tsne umap scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 "scalerank_rs:gamma=1.0,neg_scale=0.5"
+
+# stability against the seed and the row order (drbench's script, with ScaleRank added)
+uv run python scripts/stability.py \
+  --seed-methods pca mds tsne tsne:initialization=random tsne_rs umap umap:init=pca umap:init=random umap_rs densmap pacmap trimap \
+                 scalerank:gamma=1.0 scalerank:gamma=0.5 scalerank:gamma=0.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
+  --order-methods pca tsne tsne_rs umap umap:init=pca umap_rs scalerank:gamma=1.0 scalerank_rs:gamma=1.0 scalerank_rs:gamma=0.0 \
+  --point-methods tsne umap:init=pca scalerank:gamma=1.0 scalerank:gamma=0.0
+
+# this page (written to scalerank-web's web/public/docs)
+uv run python $R/build_overview.py</code></pre>
+    <p>The code for the Rust version and the app is also in <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">tsjshg/scalerank-web</a>.</p>
+  </div>
+</section>
+
+<footer class="col">This page is generated from the drbench results by scalerank-web's <code>research/scripts/build_overview.py</code>. All numbers are as of 20 November 2026.</footer>
+</main>
+
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---------------------------------------------------------------- helpers
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(parent, x, y, s, attrs = {}) { const t = el('text', { x, y, ...attrs }, parent); t.textContent = s; return t; }
+const lin = (d0, d1, r0, r1) => v => r0 + (v - d0) / (d1 - d0) * (r1 - r0);
+const logs = (d0, d1, r0, r1) => v => r0 + (Math.log(v) - Math.log(d0)) / (Math.log(d1) - Math.log(d0)) * (r1 - r0);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const fmt = (v, d = 3) => (v == null || Number.isNaN(v)) ? '–' : v.toFixed(d);
+const pct = v => (v == null) ? '–' : (v * 100).toFixed(1) + '%';
+const mean = a => { const b = a.filter(v => v != null); return b.length ? b.reduce((s, v) => s + v, 0) / b.length : null; };
+function niceTicks(lo, hi, n = 5) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+const tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; document.body.appendChild(tip);
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y + 14;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top + h > innerHeight - 8) top = y - h - 14;
+  tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+}
+function hideTip() { tip.hidden = true; }
+const row = (label, v, color) => `<div class="row"><span>${color ? `<span class="sw dot" style="background:${color};margin-right:6px"></span>` : ''}${label}</span><span class="v">${v}</span></div>`;
+function hover(target, html) {
+  target.addEventListener('pointermove', e => showTip(typeof html === 'function' ? html() : html, e.clientX, e.clientY));
+  target.addEventListener('pointerleave', hideTip);
+}
+
+const M = {
+  pca: { name: 'PCA', c: 'var(--m-pca)' }, mds: { name: 'MDS', c: 'var(--m-mds)' }, tsne: { name: 't-SNE', c: 'var(--m-tsne)' },
+  umap: { name: 'UMAP', c: 'var(--m-umap)' }, densmap: { name: 'densMAP', c: 'var(--m-densmap)' }, pacmap: { name: 'PaCMAP', c: 'var(--m-pacmap)' },
+  trimap: { name: 'TriMap', c: 'var(--m-trimap)' }, random: { name: 'Random', c: 'var(--m-random)' },
+  'sr:1.0': { name: 'ScaleRank γ=1', c: 'var(--m-sr)', sr: true, dash: '' },
+  'sr:0.5': { name: 'ScaleRank γ=0.5', c: 'var(--m-sr)', sr: true, dash: '' },
+  'sr:0.0': { name: 'ScaleRank γ=0', c: 'var(--m-sr)', sr: true, dash: '2 3' },
+  'v1:1.0': { name: 'First version γ=1', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:0.5': { name: 'First version γ=0.5', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:0.0': { name: 'First version γ=0', c: 'var(--m-sr)', sr: true, v1: true, dash: '6 3' },
+  'v1:nohard': { name: 'First version, no hard', c: 'var(--m-sr)', sr: true, v1: true },
+  'q100': { name: 'ScaleRank Q=100', c: 'var(--m-sr)', sr: true },
+};
+const BASE = ['pca', 'mds', 'tsne', 'umap', 'densmap', 'pacmap', 'trimap'];
+const SRK = ['sr:1.0', 'sr:0.5', 'sr:0.0'];
+const V1K = ['v1:1.0', 'v1:0.5', 'v1:0.0'];
+const DSN = {
+  s_curve: 'S-curve', hier_blobs: 'Hierarchical clusters', density_blobs: 'Clusters of different density', digits: 'Handwritten digits (digits)',
+  pollen: 'Pollen', usoskin: 'Usoskin', kolodziejczyk: 'Kolodziejczyk', buettner: 'Buettner',
+};
+const ORDER = ['s_curve', 'hier_blobs', 'density_blobs', 'digits', 'pollen', 'usoskin', 'kolodziejczyk', 'buettner'];
+const avg = (key, metric) => mean(ORDER.map(ds => D.summary[ds][key] ? D.summary[ds][key][metric] : null));
+const avgOut = key => mean(ORDER.map(ds => D.outfrac[ds][key]));
+
+function segmented(container, options, initial, onChange) {
+  container.innerHTML = '';
+  const btns = options.map(([value, label]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.dataset.value = value;
+    b.setAttribute('aria-pressed', value === initial ? 'true' : 'false');
+    b.addEventListener('click', () => { btns.forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); onChange(value); });
+    container.appendChild(b); return b;
+  });
+}
+
+// Horizontal bar chart. rows: [{label, value, color, bold, tipHtml}]
+function hbars(svg, rows, { max, fmtv = v => fmt(v), labelW = 120, rowH = 26, width = 640 } = {}) {
+  svg.innerHTML = '';
+  const H = rows.length * rowH + 24;
+  svg.setAttribute('viewBox', `0 0 ${width} ${H}`);
+  const x = lin(0, max, labelW, width - 64);
+  niceTicks(0, max, 4).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 20, class: 'gridline' }, svg); txt(svg, x(t), H - 6, fmtv(t), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  rows.forEach((r, i) => {
+    const y = i * rowH + 4;
+    txt(svg, labelW - 8, y + rowH / 2 + 1, r.label, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: `font-size:12px;${r.bold ? 'font-weight:700;fill:var(--ink)' : ''}` });
+    const w = Math.max(1, x(r.value) - labelW);
+    el('rect', { x: labelW, y: y + 5, width: w, height: rowH - 10, rx: 3, style: `fill:${r.color};${r.faint ? 'opacity:.45' : ''}` }, svg);
+    txt(svg, labelW + w + 6, y + rowH / 2 + 1, fmtv(r.value), { class: 'axis-label', 'dominant-baseline': 'middle', style: 'font-size:11px;fill:var(--ink-2)' });
+    hover(el('rect', { x: 0, y, width, height: rowH, fill: 'transparent' }, svg), r.tipHtml || `<div class="t">${r.label}</div>${fmtv(r.value)}`);
+  });
+}
+
+// Grouped horizontal bars: groups [{label, bars:[{value,color,name,faint}]}]
+function groupedBars(svg, groups, { max, fmtv = pct, labelW = 130, barH = 10, gap = 3, pad = 12, width = 640 } = {}) {
+  svg.innerHTML = '';
+  const nb = groups[0].bars.length, gh = nb * (barH + gap) + pad, H = groups.length * gh + 26;
+  svg.setAttribute('viewBox', `0 0 ${width} ${H}`);
+  const x = lin(0, max, labelW, width - 56);
+  niceTicks(0, max, 6).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 22, class: 'gridline' }, svg); txt(svg, x(t), H - 6, fmtv(t).replace('.0%', '%'), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  groups.forEach((g, gi) => {
+    const y0 = gi * gh + 4;
+    txt(svg, labelW - 8, y0 + (gh - pad) / 2 + 2, g.label, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: 'font-size:12px' });
+    g.bars.forEach((b, bi) => {
+      const v = b.value ?? 0, y = y0 + bi * (barH + gap);
+      el('rect', { x: labelW, y, width: Math.max(1.5, x(Math.min(v, max)) - labelW), height: barH, rx: 2, style: `fill:${b.color};${b.faint ? 'opacity:.45' : ''}` }, svg);
+      txt(svg, Math.max(labelW, x(Math.min(v, max))) + 5, y + barH - 1.5, b.value == null ? '–' : fmtv(v), { class: 'axis-label', style: 'font-size:9.5px' });
+    });
+    hover(el('rect', { x: 0, y: y0 - 2, width, height: gh, fill: 'transparent' }, svg),
+      `<div class="t">${g.label}</div>` + g.bars.map(b => row(b.name, b.value == null ? '–' : fmtv(b.value), b.color)).join(''));
+  });
+}
+
+// ---------------------------------------------------------------- fig 1: 2022 Q scores
+hbars(document.getElementById('fig-q-global'), [
+  { label: 'MADR', value: 7735, color: 'var(--m-sr)', bold: true },
+  { label: 'MDS', value: 14741, color: 'var(--m-mds)' },
+  { label: 'PCA', value: 15697, color: 'var(--m-pca)' },
+  { label: 't-SNE', value: 19370, color: 'var(--m-tsne)' },
+  { label: 'UMAP', value: 25547, color: 'var(--m-umap)' },
+], { max: 28000, fmtv: v => Math.round(v).toLocaleString('en-GB'), labelW: 70, width: 400 });
+hbars(document.getElementById('fig-q-local'), [
+  { label: 'MDS', value: 0.0812, color: 'var(--m-mds)' },
+  { label: 'PCA', value: 0.0437, color: 'var(--m-pca)' },
+  { label: 'MADR', value: 0.0400, color: 'var(--m-sr)', bold: true },
+  { label: 'UMAP', value: 0.0140, color: 'var(--m-umap)' },
+  { label: 't-SNE', value: 0.0078, color: 'var(--m-tsne)' },
+], { max: 0.09, fmtv: v => v.toFixed(3), labelW: 70, width: 400 });
+
+// ---------------------------------------------------------------- fig 2: R_NX concept
+(function () {
+  const svg = document.getElementById('fig-rnx-concept');
+  const panels = [
+    { x0: 20, title: 'Original space (high-dimensional)', nbr: [1, 2, 3, 4, 5], pts: [[150, 110], [118, 82], [182, 92], [128, 140], [176, 136], [150, 64], [92, 112], [212, 120], [100, 170], [214, 170], [60, 70], [240, 66]] },
+    { x0: 340, title: '2-D embedding', nbr: [1, 2, 4, 6, 7], pts: [[150, 110], [124, 90], [176, 96], [214, 168], [132, 136], [96, 168], [170, 140], [116, 116], [240, 72], [60, 72], [196, 60], [64, 150]] },
+  ];
+  const shared = [1, 2, 4];
+  panels.forEach(p => {
+    const g = el('g', { transform: `translate(${p.x0},0)` }, svg);
+    el('rect', { x: 0, y: 26, width: 280, height: 176, rx: 8, fill: 'none', style: 'stroke:var(--rule)' }, g);
+    txt(g, 12, 18, p.title, { style: 'font-size:12.5px;font-weight:700;fill:var(--ink)' });
+    const c = p.pts[0];
+    const r = Math.max(...p.nbr.map(k => Math.hypot(p.pts[k][0] - c[0], p.pts[k][1] - c[1]))) + 10;
+    el('circle', { cx: c[0], cy: c[1], r, fill: 'none', style: 'stroke:var(--muted);stroke-dasharray:4 3' }, g);
+    p.pts.forEach((pt, k) => {
+      if (k === 0) return;
+      const inN = p.nbr.includes(k), sh = shared.includes(k);
+      el('circle', { cx: pt[0], cy: pt[1], r: 6.5, style: `fill:${sh ? 'var(--m-sr)' : inN ? 'var(--panel)' : 'var(--rule)'};stroke:${inN ? 'var(--m-sr)' : 'var(--muted)'};stroke-width:1.6` }, g);
+      txt(g, pt[0], pt[1] + 3.5, String(k), { 'text-anchor': 'middle', style: `font-size:9px;font-family:var(--f-mono);fill:${sh ? 'var(--panel)' : 'var(--ink-2)'}` });
+    });
+    el('circle', { cx: c[0], cy: c[1], r: 8, style: 'fill:var(--ink)' }, g);
+    txt(g, c[0], c[1] + 3.5, 'i', { 'text-anchor': 'middle', style: 'font-size:10px;font-weight:700;fill:var(--paper)' });
+  });
+  txt(svg, 320, 118, '→', { 'text-anchor': 'middle', style: 'font-size:20px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- R_NX curve chart (figs 3, 18)
+function rnxChart(svgId, legendId, ds, methods) {
+  const svg = document.getElementById(svgId), legend = document.getElementById(legendId);
+  svg.innerHTML = ''; legend.innerHTML = '';
+  const W = 640, H = 330, m = { l: 46, r: 14, t: 12, b: 44 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const C = D.curves[ds], series = methods.filter(k => C[k]);
+  const kmax = Math.max(...series.map(k => C[k].k[C[k].k.length - 1]));
+  let ylo = Math.min(...series.flatMap(k => C[k].r)), yhi = Math.max(...series.flatMap(k => C[k].r));
+  ylo = Math.min(0, Math.floor(ylo * 10) / 10); yhi = Math.ceil(yhi * 10) / 10;
+  const x = logs(1, kmax, m.l, W - m.r), y = lin(ylo, yhi, H - m.b, m.t);
+  niceTicks(ylo, yhi, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: t === 0 ? 'zero' : 'gridline' }, svg); txt(svg, m.l - 8, y(t) + 4, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  [1, 10, 100, 1000].filter(t => t <= kmax).forEach(t => { el('line', { x1: x(t), x2: x(t), y1: m.t, y2: H - m.b, class: 'gridline' }, svg); txt(svg, x(t), H - m.b + 16, String(t), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  txt(svg, (m.l + W - m.r) / 2, H - 6, 'K (neighbourhood size)  →  more global', { class: 'axis-title', 'text-anchor': 'middle' });
+  txt(svg, 12, m.t + 8, 'R_NX(K)', { class: 'axis-title' });
+  series.forEach(k => {
+    const s = C[k], d = s.k.map((kk, i) => `${i ? 'L' : 'M'}${x(kk).toFixed(1)},${y(s.r[i]).toFixed(1)}`).join('');
+    el('path', { d, fill: 'none', style: `stroke:${M[k].c};stroke-width:${M[k].sr ? 2.6 : 2}`, 'stroke-dasharray': M[k].dash || '', 'stroke-linejoin': 'round' }, svg);
+    const span = document.createElement('span');
+    span.innerHTML = `<span class="sw ${M[k].dash ? 'dash' : ''}" style="background:${M[k].c};border-color:${M[k].c}"></span>${M[k].name}`;
+    legend.appendChild(span);
+  });
+  const cross = el('line', { y1: m.t, y2: H - m.b, style: 'stroke:var(--ink-2);stroke-width:1', visibility: 'hidden' }, svg);
+  const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', e => {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const kv = Math.exp((p.x - m.l) / (W - m.r - m.l) * Math.log(kmax));
+    const ks = C[series[0]].k; let idx = 0; ks.forEach((kk, i) => { if (Math.abs(Math.log(kk / kv)) < Math.abs(Math.log(ks[idx] / kv))) idx = i; });
+    cross.setAttribute('x1', x(ks[idx])); cross.setAttribute('x2', x(ks[idx])); cross.setAttribute('visibility', 'visible');
+    const vals = series.map(k => [k, C[k].r[idx]]).sort((a, b) => b[1] - a[1]);
+    showTip(`<div class="t">K = ${ks[idx]}</div>` + vals.map(([k, v]) => row(M[k].name, v.toFixed(3), M[k].c)).join(''), e.clientX, e.clientY);
+  });
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+}
+segmented(document.getElementById('rnx-ds'), [['pollen', 'Pollen'], ['digits', 'digits']], 'pollen', v => rnxChart('fig-rnx', 'fig-rnx-legend', v, BASE));
+rnxChart('fig-rnx', 'fig-rnx-legend', 'pollen', BASE);
+const RNX2 = ['tsne', 'mds', 'sr:1.0', 'sr:0.0', 'v1:1.0'];
+segmented(document.getElementById('rnx2-ds'), [['pollen', 'Pollen'], ['digits', 'digits']], 'pollen', v => rnxChart('fig-rnx2', 'fig-rnx2-legend', v, RNX2));
+rnxChart('fig-rnx2', 'fig-rnx2-legend', 'pollen', RNX2);
+
+// ---------------------------------------------------------------- fig 4: heat table
+const HEAT_METRICS = [['rnx@10', 'Local R_NX@10'], ['auc_rnx', 'AUC_RNX'], ['dist_spearman', 'Global distance correlation'], ['density_corr', 'Density correlation'], ['knn_acc', 'kNN accuracy']];
+function heatTable(metric) {
+  const t = document.getElementById('heat-table'), cols = [...BASE, 'sr:1.0', 'sr:0.0', 'v1:1.0'];
+  let h = '<thead><tr><th>Dataset</th>' + cols.map(c => `<th class="n ${M[c].sr ? 'sr-col' : ''}">${M[c].name}</th>`).join('') + '</tr></thead><tbody>';
+  ORDER.forEach(ds => {
+    const S = D.summary[ds], vals = cols.map(c => S[c] ? S[c][metric] : null), ok = vals.filter(v => v != null);
+    if (!ok.length) { h += `<tr><td>${DSN[ds]}</td>` + cols.map(() => '<td class="cell">–</td>').join('') + '</tr>'; return; }
+    const lo = Math.min(...ok), hi = Math.max(...ok);
+    h += `<tr><td>${DSN[ds]}</td>` + vals.map(v => {
+      if (v == null) return '<td class="cell">–</td>';
+      const a = hi > lo ? (v - lo) / (hi - lo) : 1;
+      return `<td class="cell ${v === hi ? 'best' : ''}" style="background:color-mix(in oklab, var(--seq) ${Math.round(a * 100)}%, var(--panel))">${v.toFixed(3)}</td>`;
+    }).join('') + '</tr>';
+  });
+  t.innerHTML = h + '</tbody>';
+}
+segmented(document.getElementById('heat-metric'), HEAT_METRICS, 'rnx@10', heatTable);
+heatTable('rnx@10');
+
+// ---------------------------------------------------------------- fig 5: triplet diagram
+(function () {
+  const svg = document.getElementById('fig-triplet');
+  const defs = el('defs', {}, svg);
+  [['ah-pull', 'var(--good)'], ['ah-push', 'var(--m-sr)']].forEach(([id, c]) => {
+    const mk = el('marker', { id, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M0,0 L10,5 L0,10 z', style: `fill:${c}` }, mk);
+  });
+  const ci = [210, 118];
+  el('circle', { cx: ci[0], cy: ci[1], r: 78, fill: 'none', style: 'stroke:var(--muted);stroke-dasharray:5 4' }, svg);
+  txt(svg, ci[0], ci[1] - 86, 'Top-K neighbours of i in the original space', { 'text-anchor': 'middle', style: 'font-size:11.5px;fill:var(--muted)' });
+  [[170, 80], [250, 92], [180, 170], [262, 150], [150, 132]].forEach(p => el('circle', { cx: p[0], cy: p[1], r: 5, style: 'fill:var(--rule);stroke:var(--muted)' }, svg));
+  [[340, 60], [372, 180], [64, 70], [80, 190]].forEach(p => el('circle', { cx: p[0], cy: p[1], r: 5, style: 'fill:var(--rule);stroke:var(--muted)' }, svg));
+  const j = [262, 70], mpt = [318, 128];
+  el('line', { x1: ci[0] + 10, y1: ci[1] - 8, x2: j[0] - 9, y2: j[1] + 7, style: 'stroke:var(--good);stroke-width:2.2', 'marker-end': 'url(#ah-pull)', 'marker-start': 'url(#ah-pull)' }, svg);
+  el('line', { x1: ci[0] + 12, y1: ci[1] + 2, x2: mpt[0] - 12, y2: mpt[1] + 1, style: 'stroke:var(--m-sr);stroke-width:2.2;stroke-dasharray:6 4', 'marker-end': 'url(#ah-push)' }, svg);
+  el('circle', { cx: j[0], cy: j[1], r: 9, style: 'fill:var(--panel);stroke:var(--good);stroke-width:2.2' }, svg);
+  txt(svg, j[0], j[1] + 4, 'j', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: mpt[0], cy: mpt[1], r: 9, style: 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2.2' }, svg);
+  txt(svg, mpt[0], mpt[1] + 4, 'm', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: ci[0], cy: ci[1], r: 10, style: 'fill:var(--ink)' }, svg);
+  txt(svg, ci[0], ci[1] + 4, 'i', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--paper)' });
+  const L = 430;
+  txt(svg, L, 56, 'Correct if', { style: 'font-size:12.5px;font-weight:700;fill:var(--ink)' });
+  txt(svg, L, 78, 'd(i, j) < d(i, m) in 2-D', { style: 'font-size:12.5px;font-family:var(--f-mono);fill:var(--ink-2)' });
+  el('line', { x1: L, y1: 108, x2: L + 30, y2: 108, style: 'stroke:var(--good);stroke-width:2.2' }, svg);
+  txt(svg, L + 38, 112, 'pull j towards i', { style: 'font-size:12px' });
+  el('line', { x1: L, y1: 134, x2: L + 30, y2: 134, style: 'stroke:var(--m-sr);stroke-width:2.2;stroke-dasharray:6 4' }, svg);
+  txt(svg, L + 38, 138, 'push m away from i', { style: 'font-size:12px' });
+  txt(svg, L, 170, 'Draw K from p(K), j from the top K,', { style: 'font-size:11.5px;fill:var(--muted)' });
+  txt(svg, L, 188, 'and m from outside it', { style: 'font-size:11.5px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- fig 6: scale profile slider
+(function () {
+  const N = 1797, bins = [[1, 3], [4, 10], [11, 30], [31, 100], [101, 300], [301, 1000], [1001, N - 2]];
+  const svg = document.getElementById('fig-profile'), input = document.getElementById('gamma'), out = document.getElementById('gamma-readout');
+  function draw() {
+    const g = parseFloat(input.value); let tot = 0; const w = [];
+    for (let k = 1; k <= N - 2; k++) { const v = Math.pow(k, -g); w.push(v); tot += v; }
+    const share = bins.map(([a, b]) => { let s = 0; for (let k = a; k <= b; k++) s += w[k - 1]; return s / tot; });
+    out.textContent = `γ = ${g.toFixed(1)}: ${pct(share[0] + share[1])} of the weight on K≤10, ${pct(share[4] + share[5] + share[6])} on K>100`;
+    svg.innerHTML = '';
+    const W = 640, H = 250, m = { l: 46, r: 10, t: 14, b: 42 };
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const ymax = Math.max(0.5, Math.ceil(Math.max(...share) * 10) / 10);
+    const y = lin(0, ymax, H - m.b, m.t), bw = (W - m.l - m.r) / bins.length;
+    niceTicks(0, ymax, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: 'gridline' }, svg); txt(svg, m.l - 8, y(t) + 4, Math.round(t * 100) + '%', { class: 'tick axis-label', 'text-anchor': 'end' }); });
+    bins.forEach(([a, b], i) => {
+      const x0 = m.l + i * bw + 8;
+      el('rect', { x: x0, y: y(share[i]), width: bw - 16, height: Math.max(0, y(0) - y(share[i])), rx: 3, style: `fill:${i < 2 ? 'var(--m-sr)' : 'var(--c1)'}` }, svg);
+      txt(svg, x0 + (bw - 16) / 2, y(share[i]) - 5, pct(share[i]), { 'text-anchor': 'middle', class: 'axis-label', style: 'font-size:10.5px;fill:var(--ink-2)' });
+      txt(svg, x0 + (bw - 16) / 2, H - m.b + 16, `${a}–${b}`, { 'text-anchor': 'middle', class: 'tick axis-label' });
+      hover(el('rect', { x: m.l + i * bw, y: m.t, width: bw, height: H - m.t - m.b, fill: 'transparent' }, svg), () => `<div class="t">K = ${a}–${b}</div>${row('Share of weight', pct(share[i]))}`);
+    });
+    txt(svg, (m.l + W - m.r) / 2, H - 6, 'Range of K (red: K ≤ 10)', { class: 'axis-title', 'text-anchor': 'middle' });
+  }
+  input.addEventListener('input', draw); draw();
+})();
+
+// ---------------------------------------------------------------- figs 7, 8
+hbars(document.getElementById('fig-objective'), [
+  ['ScaleRank (first version)', 0.1456, 'var(--m-sr)', true], ['t-SNE', 0.1656, 'var(--m-tsne)'], ['TriMap', 0.1704, 'var(--m-trimap)'],
+  ['PaCMAP', 0.1839, 'var(--m-pacmap)'], ['densMAP', 0.1983, 'var(--m-densmap)'], ['UMAP', 0.2029, 'var(--m-umap)'],
+  ['MDS', 0.2169, 'var(--m-mds)'], ['PCA', 0.2451, 'var(--m-pca)'],
+].map(([label, value, color, bold]) => ({ label, value, color, bold })), { max: 0.26, fmtv: v => v.toFixed(3), labelW: 160 });
+const hardRows = key => [
+  { label: 'Uniform negatives only', value: key === 'rnx' ? 0.436 : 0.463, color: 'var(--m-random)' },
+  { label: 'hard negative 0.3', value: key === 'rnx' ? 0.536 : 0.561, color: 'var(--m-sr)', bold: true },
+  { label: 't-SNE (reference)', value: key === 'rnx' ? 0.583 : 0.539, color: 'var(--m-tsne)' },
+];
+hbars(document.getElementById('fig-hard-rnx'), hardRows('rnx'), { max: 0.7, labelW: 130, width: 420 });
+hbars(document.getElementById('fig-hard-auc'), hardRows('auc'), { max: 0.7, labelW: 130, width: 420 });
+
+// ---------------------------------------------------------------- fig 9: outlier fractions
+groupedBars(document.getElementById('fig-outfrac'), ORDER.map(ds => ({
+  label: DSN[ds],
+  bars: [
+    { name: 'First version γ=1', value: D.outfrac[ds]['v1:1.0'], color: 'var(--m-sr)', faint: true },
+    { name: 'First version + mitigation', value: D.outfrac[ds]['v1:R'], color: 'var(--c7)' },
+    { name: 'Current version γ=1', value: D.outfrac[ds]['sr:1.0'], color: 'var(--m-sr)' },
+    { name: 't-SNE', value: D.outfrac[ds]['tsne'], color: 'var(--m-tsne)' },
+    { name: 'MDS', value: D.outfrac[ds]['mds'], color: 'var(--m-mds)' },
+  ],
+})), { max: 0.3, labelW: 170, barH: 8, gap: 2 });
+
+// ---------------------------------------------------------------- fig 10: hub diagram
+(function () {
+  const svg = document.getElementById('fig-hub');
+  const defs = el('defs', {}, svg);
+  const mk = el('marker', { id: 'ah-nn', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--muted)' }, mk);
+  const hub = [250, 112];
+  const pts = [[160, 60], [170, 170], [330, 58], [340, 168], [250, 36], [250, 192], [140, 112]];
+  const anti = [520, 112];
+  pts.forEach(p => {
+    const dx = hub[0] - p[0], dy = hub[1] - p[1], d = Math.hypot(dx, dy);
+    el('line', { x1: p[0] + dx / d * 9, y1: p[1] + dy / d * 9, x2: hub[0] - dx / d * 15, y2: hub[1] - dy / d * 15, style: 'stroke:var(--muted);stroke-width:1.4', 'marker-end': 'url(#ah-nn)' }, svg);
+    el('circle', { cx: p[0], cy: p[1], r: 7, style: 'fill:var(--panel);stroke:var(--ink-2);stroke-width:1.5' }, svg);
+  });
+  const t = pts[3];
+  el('line', { x1: anti[0] - 12, y1: anti[1] + 6, x2: t[0] + 12, y2: t[1] - 6, style: 'stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3', 'marker-end': 'url(#ah-nn)' }, svg);
+  el('circle', { cx: hub[0], cy: hub[1], r: 13, style: 'fill:var(--c1)' }, svg);
+  txt(svg, hub[0], hub[1] + 32, 'hub', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  el('circle', { cx: anti[0], cy: anti[1], r: 8, style: 'fill:var(--panel);stroke:var(--ink);stroke-width:2' }, svg);
+  el('circle', { cx: anti[0], cy: anti[1], r: 12, style: 'fill:none;stroke:var(--ink);stroke-width:1.2' }, svg);
+  txt(svg, anti[0], anti[1] + 30, 'anti-hub', { 'text-anchor': 'middle', style: 'font-size:12px;font-weight:700;fill:var(--ink)' });
+  txt(svg, anti[0], anti[1] + 46, 'pointed to by no one', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--muted)' });
+  txt(svg, hub[0], 212, 'nearest neighbour of many points', { 'text-anchor': 'middle', style: 'font-size:11px;fill:var(--muted)' });
+})();
+
+// ---------------------------------------------------------------- fig 12: P(out | anti-hub)
+groupedBars(document.getElementById('fig-antihub'),
+  [['hier_blobs', 1.98, 0.62, 0.08], ['density_blobs', 1.09, 0.74, 0.19], ['digits', 0.79, 0.36, 0.19], ['pollen', 0.80, 0.54, 0.57]]
+    .map(([ds, skew, a, b]) => ({ label: `${DSN[ds]} (${skew.toFixed(2)})`, bars: [
+      { name: 'With hard', value: a, color: 'var(--m-sr)' }, { name: 'Without hard', value: b, color: 'var(--m-random)' }] })),
+  { max: 1, labelW: 200, barH: 11, gap: 3, pad: 14 });
+
+// ---------------------------------------------------------------- fig 13: force decomposition
+(function () {
+  const svg = document.getElementById('fig-forces');
+  const rows = [
+    ['As anchor: towards its neighbour j', -0.0557, -0.0440],
+    ['As anchor: away from uniform m', 0.0065, 0.0058],
+    ['As anchor: away from hard-negative m', 0.0453, 0.0202],
+    ['As j: pulled by other points', -0.0092, -0.0210],
+    ['As m: pushed by other points (uniform)', 0.0034, 0.0052],
+    ['As m: pushed by other points (hard)', -0.0030, -0.0041],
+    ['Total', -0.0127, -0.0378],
+  ];
+  const W = 640, labelW = 250, gh = 34, H = rows.length * gh + 30;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H + 6}`);
+  const x = lin(-0.06, 0.05, labelW + 10, W - 16);
+  [-0.06, -0.04, -0.02, 0, 0.02, 0.04].forEach(t => { el('line', { x1: x(t), x2: x(t), y1: 0, y2: H - 26, class: t === 0 ? 'zero' : 'gridline' }, svg); txt(svg, x(t), H - 10, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  txt(svg, x(-0.03), H + 2, '← inwards', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  txt(svg, x(0.03), H + 2, 'outwards →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  rows.forEach(([name, a, b], i) => {
+    const y0 = i * gh + 4, total = name === 'Total';
+    if (total) el('line', { x1: 0, x2: W, y1: y0 - 2, y2: y0 - 2, style: 'stroke:var(--rule)' }, svg);
+    txt(svg, labelW, y0 + gh / 2 - 1, name, { 'text-anchor': 'end', 'dominant-baseline': 'middle', style: `font-size:11.5px;${total ? 'font-weight:700;fill:var(--ink)' : ''}` });
+    [[a, 'var(--m-sr)'], [b, 'var(--c1)']].forEach(([v, c], bi) => {
+      const y = y0 + 6 + bi * 11;
+      el('rect', { x: Math.min(x(0), x(v)), y, width: Math.max(1.5, Math.abs(x(v) - x(0))), height: 9, rx: 2, style: `fill:${c}` }, svg);
+    });
+    hover(el('rect', { x: 0, y: y0, width: W, height: gh, fill: 'transparent' }, svg),
+      `<div class="t">${name}</div>${row('Points that become outliers', (a > 0 ? '+' : '') + a.toFixed(4), 'var(--m-sr)')}${row('All other points', (b > 0 ? '+' : '') + b.toFixed(4), 'var(--c1)')}`);
+  });
+})();
+
+// ---------------------------------------------------------------- generic small line chart over categories
+function catLines(svg, cats, series, { lo, hi, ref, fmtv = v => v.toFixed(2), width = 420, height = 260 } = {}) {
+  svg.innerHTML = '';
+  const m = { l: 44, r: 92, t: 12, b: 34 };
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  const x = i => m.l + 18 + i * (width - m.l - m.r - 36) / (cats.length - 1), y = lin(lo, hi, height - m.b, m.t);
+  niceTicks(lo, hi, 5).forEach(t => { el('line', { x1: m.l, x2: width - m.r, y1: y(t), y2: y(t), class: 'gridline' }, svg); txt(svg, m.l - 6, y(t) + 4, fmtv(t), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  cats.forEach((c, i) => txt(svg, x(i), height - m.b + 16, c, { class: 'tick axis-label', 'text-anchor': 'middle' }));
+  txt(svg, (m.l + width - m.r) / 2, height - 4, 'Number of negatives Q', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  series.forEach(s => {
+    el('path', { d: s.values.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(''), fill: 'none', style: `stroke:${s.color};stroke-width:2` }, svg);
+    s.values.forEach((v, i) => {
+      el('circle', { cx: x(i), cy: y(v), r: 4, style: `fill:${s.color};stroke:var(--panel);stroke-width:1.5` }, svg);
+      hover(el('circle', { cx: x(i), cy: y(v), r: 10, fill: 'transparent' }, svg), `<div class="t">${s.name}</div>${row('Q = ' + cats[i], fmtv(v))}`);
+    });
+    if (ref && s.ref != null) {
+      const rx = m.l + 4, ry = y(s.ref);
+      el('path', { d: `M${rx - 4},${ry - 4}L${rx + 4},${ry + 4}M${rx - 4},${ry + 4}L${rx + 4},${ry - 4}`, style: `stroke:${s.color};stroke-width:2` }, svg);
+      hover(el('circle', { cx: rx, cy: ry, r: 9, fill: 'transparent' }, svg), `<div class="t">${s.name}</div>${row('First version (triplets + hard)', fmtv(s.ref))}`);
+    }
+    const last = s.values[s.values.length - 1];
+    txt(svg, x(cats.length - 1) + 9, y(last) + 4 + (s.nudge || 0), s.name, { style: `font-size:10.5px;fill:var(--ink-2)` });
+  });
+}
+
+// ---------------------------------------------------------------- fig 14: Q sweep (static numbers from scripts/sweep_scalerank.py runs)
+(function () {
+  const Q = ['1', '5', '20', '100'];
+  const S = [
+    { ds: 'pollen', color: 'var(--c1)', rnx: [0.664, 0.677, 0.681, 0.673], sp: [0.876, 0.859, 0.833, 0.807], rr: 0.691, rs: 0.862 },
+    { ds: 'digits', color: 'var(--c2)', rnx: [0.435, 0.488, 0.529, 0.552], sp: [0.659, 0.630, 0.606, 0.592], rr: 0.536, rs: 0.626 },
+    { ds: 'density_blobs', color: 'var(--c3)', rnx: [0.278, 0.309, 0.364, 0.380], sp: [0.615, 0.599, 0.593, 0.595], rr: 0.308, rs: 0.594 },
+    { ds: 'hier_blobs', color: 'var(--c4)', rnx: [0.268, 0.288, 0.307, 0.319], sp: [0.982, 0.981, 0.972, 0.941], rr: 0.238, rs: 0.942 },
+  ];
+  catLines(document.getElementById('fig-qsweep-rnx'), Q, S.map(s => ({ name: s.ds === 'pollen' ? 'Pollen' : s.ds, color: s.color, values: s.rnx, ref: s.rr })), { lo: 0.2, hi: 0.75, ref: true });
+  catLines(document.getElementById('fig-qsweep-sp'), Q, S.map(s => ({ name: s.ds === 'pollen' ? 'Pollen' : s.ds, color: s.color, values: s.sp, ref: s.rs, nudge: s.ds === 'density_blobs' ? 6 : s.ds === 'digits' ? -4 : 0 })), { lo: 0.55, hi: 1.0, ref: true });
+  document.getElementById('fig-qsweep-legend').innerHTML = S.map(s => `<span><span class="sw" style="background:${s.color}"></span>${DSN[s.ds]}</span>`).join('') +
+    `<span><span style="color:var(--ink-2);font-family:var(--f-mono)">×</span>First version (triplets + hard 0.3)</span>`;
+})();
+
+// ---------------------------------------------------------------- table 2: 8-dataset means
+(function () {
+  const rows = [
+    ['v1:1.0', 'First version (triplets + hard 0.3)'], ['sr:1.0', 'Current version γ=1 (Q=20, 8 groups)'], ['q100', 'Q=100, 4 groups'],
+    ['tsne', 't-SNE'], ['mds', 'MDS'],
+  ];
+  document.getElementById('mean-table').innerHTML = rows.map(([k, name]) =>
+    `<tr class="${k === 'sr:1.0' ? 'hl' : ''}"><td>${name}</td><td class="n">${pct(avgOut(k))}</td><td class="n">${fmt(avg(k, 'rnx@10'))}</td><td class="n">${fmt(avg(k, 'auc_rnx'))}</td><td class="n">${fmt(avg(k, 'dist_spearman'))}</td><td class="n">${fmt(avg(k, 'density_corr'))}</td><td class="n">${fmt(avg(k, 'time_s'), 1)} s</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- fig 15: 2-D square
+hbars(document.getElementById('fig-square'), [
+  { label: 'First version (300 epochs)', value: 0.891, color: 'var(--m-sr)', faint: true },
+  { label: 'Current version (300 epochs)', value: 0.763, color: 'var(--m-sr)', bold: true },
+  { label: 'Current version (800 epochs)', value: 0.799, color: 'var(--m-sr)' },
+  { label: 'Current version (800, PCA init.)', value: 0.809, color: 'var(--m-sr)' },
+], { max: 1, labelW: 180 });
+
+// ---------------------------------------------------------------- fig 16: trade-off small multiples
+let tradeMode = 'both';
+function drawTrade() {
+  const legend = document.getElementById('fig-trade-legend');
+  legend.innerHTML = BASE.map(k => `<span><span class="sw dot" style="background:${M[k].c}"></span>${M[k].name}</span>`).join('') +
+    (tradeMode !== 'v1' ? `<span><span class="sw dot" style="background:var(--m-sr)"></span>Current version (γ=1, 0.5, 0)</span>` : '') +
+    (tradeMode !== 'sr' ? `<span><span class="sw ring" style="border-color:var(--m-sr)"></span>First version (γ=1, 0.5, 0)</span>` : '');
+  const grid = document.getElementById('fig-trade'); grid.innerHTML = '';
+  const families = [];
+  if (tradeMode !== 'v1') families.push({ keys: SRK, hollow: false, dash: '' });
+  if (tradeMode !== 'sr') families.push({ keys: V1K, hollow: true, dash: '5 3' });
+  ORDER.forEach(ds => {
+    const S = D.summary[ds];
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="mini-title">${DSN[ds]}</div>`;
+    const svg = el('svg', { class: 'chart', viewBox: '0 0 300 240', role: 'img', 'aria-label': `Trade-off on ${DSN[ds]}` });
+    wrap.appendChild(svg); grid.appendChild(wrap);
+    const keys = [...BASE, ...families.flatMap(f => f.keys)].filter(k => S[k]);
+    const xs = keys.map(k => S[k].dist_spearman), ys = keys.map(k => S[k]['rnx@10']);
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const px = (x1 - x0) * 0.12 || 0.05, py = (y1 - y0) * 0.14 || 0.05; x0 -= px; x1 += px; y0 -= py; y1 += py;
+    const m = { l: 38, r: 10, t: 8, b: 34 };
+    const X = lin(x0, x1, m.l, 300 - m.r), Y = lin(y0, y1, 240 - m.b, m.t);
+    niceTicks(x0, x1, 4).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: 240 - m.b, class: 'gridline' }, svg); txt(svg, X(t), 240 - m.b + 13, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle', style: 'font-size:10px' }); });
+    niceTicks(y0, y1, 4).forEach(t => { el('line', { x1: m.l, x2: 300 - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 5, Y(t) + 3, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end', style: 'font-size:10px' }); });
+    txt(svg, (m.l + 300 - m.r) / 2, 236, 'Global: distance correlation →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+    txt(svg, 4, m.t + 2, 'Local ↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+    const point = (k, x, y, hollow, label) => {
+      el('circle', { cx: X(x), cy: Y(y), r: M[k].sr ? 5 : 4.5, style: hollow ? `fill:var(--panel);stroke:${M[k].c};stroke-width:2` : `fill:${M[k].c};stroke:var(--panel);stroke-width:2` }, svg);
+      if (label) txt(svg, X(x) + 7, Y(y) - 6, label, { style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('Local R_NX@10', y.toFixed(3))}${row('Global distance correlation', x.toFixed(3))}`);
+    };
+    families.forEach(f => {
+      const pts = f.keys.filter(k => S[k]).map(k => [k, S[k].dist_spearman, S[k]['rnx@10']]);
+      el('path', { d: pts.map(([, x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': f.dash }, svg);
+    });
+    BASE.filter(k => S[k]).forEach(k => point(k, S[k].dist_spearman, S[k]['rnx@10'], false));
+    families.forEach(f => f.keys.filter(k => S[k]).forEach(k => point(k, S[k].dist_spearman, S[k]['rnx@10'], f.hollow,
+      f.hollow && tradeMode === 'both' ? '' : (k.endsWith('1.0') ? 'γ=1' : k.endsWith('0.5') ? '0.5' : '0'))));
+  });
+}
+segmented(document.getElementById('trade-mode'), [['both', 'Both'], ['sr', 'Current version'], ['v1', 'First version']], tradeMode, v => { tradeMode = v; drawTrade(); });
+drawTrade();
+
+// ---------------------------------------------------------------- fig 17: mean trade-off and γ vs outliers
+(function () {
+  const svg = document.getElementById('fig-mean-trade');
+  const W = 420, H = 280, m = { l: 46, r: 16, t: 12, b: 38 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pts = k => [avg(k, 'dist_spearman'), avg(k, 'rnx@10')];
+  const all = [...SRK, ...V1K, 'tsne', 'mds', 'pacmap'].map(pts);
+  const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
+  const x0 = Math.min(...xs) - 0.04, x1 = Math.max(...xs) + 0.04, y0 = Math.min(...ys) - 0.03, y1 = Math.max(...ys) + 0.03;
+  const X = lin(x0, x1, m.l, W - m.r), Y = lin(y0, y1, H - m.b, m.t);
+  niceTicks(x0, x1, 5).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: H - m.b, class: 'gridline' }, svg); txt(svg, X(t), H - m.b + 14, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle' }); });
+  niceTicks(y0, y1, 5).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 6, Y(t) + 4, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  txt(svg, (m.l + W - m.r) / 2, H - 4, 'Global: distance correlation (mean) →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  txt(svg, 4, m.t + 2, 'Local ↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+  [[SRK, false, ''], [V1K, true, '5 3']].forEach(([keys, hollow, dash]) => {
+    const P = keys.map(pts);
+    el('path', { d: P.map(([x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': dash }, svg);
+    keys.forEach((k, i) => {
+      const [x, y] = P[i];
+      el('circle', { cx: X(x), cy: Y(y), r: 5, style: hollow ? 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2' : 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, svg);
+      txt(svg, X(x) + (hollow ? 8 : -8), Y(y) + (hollow ? 12 : -7), `γ=${k.split(':')[1].replace('.0', '')}`, { 'text-anchor': hollow ? 'start' : 'end', style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${hollow ? 'First version' : 'Current version'} γ=${k.split(':')[1]}</div>${row('Local R_NX@10', y.toFixed(3))}${row('Global distance correlation', x.toFixed(3))}${row('Outliers', pct(avgOut(k)))}`);
+    });
+  });
+  ['tsne', 'mds', 'pacmap'].forEach(k => {
+    const [x, y] = pts(k);
+    el('circle', { cx: X(x), cy: Y(y), r: 5, style: `fill:${M[k].c};stroke:var(--panel);stroke-width:2` }, svg);
+    txt(svg, X(x) + 8, Y(y) + 4, M[k].name, { style: 'font-size:10.5px;fill:var(--ink-2)' });
+    hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('Local R_NX@10', y.toFixed(3))}${row('Global distance correlation', x.toFixed(3))}`);
+  });
+
+  // γ vs outliers
+  const s2 = document.getElementById('fig-gamma-out');
+  s2.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const G = ['1', '0.5', '0'], gx = i => m.l + 30 + i * (W - m.l - m.r - 60) / 2;
+  const series = [[SRK, false, ''], [V1K, true, '5 3']].map(([keys, hollow, dash]) => ({ hollow, dash, v: keys.map(avgOut) }));
+  const ymax = Math.max(0.2, Math.ceil(Math.max(...series.flatMap(s => s.v)) * 20) / 20);
+  const Y2 = lin(0, ymax, H - m.b, m.t);
+  niceTicks(0, ymax, 4).forEach(t => { el('line', { x1: m.l, x2: W - m.r, y1: Y2(t), y2: Y2(t), class: 'gridline' }, s2); txt(s2, m.l - 6, Y2(t) + 4, Math.round(t * 100) + '%', { class: 'tick axis-label', 'text-anchor': 'end' }); });
+  G.forEach((g, i) => txt(s2, gx(i), H - m.b + 14, `γ=${g}`, { class: 'tick axis-label', 'text-anchor': 'middle' }));
+  txt(s2, (m.l + W - m.r) / 2, H - 4, '← more local\u00a0\u00a0\u00a0γ\u00a0\u00a0\u00a0more global →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+  const tsneOut = avgOut('tsne');
+  el('line', { x1: m.l, x2: W - m.r, y1: Y2(tsneOut), y2: Y2(tsneOut), style: 'stroke:var(--m-tsne);stroke-width:1.5;stroke-dasharray:3 3' }, s2);
+  txt(s2, W - m.r, Y2(tsneOut) - 5, `t-SNE ${pct(tsneOut)}`, { 'text-anchor': 'end', style: 'font-size:10px;fill:var(--ink-2)' });
+  series.forEach(s => {
+    el('path', { d: s.v.map((v, i) => `${i ? 'L' : 'M'}${gx(i)},${Y2(v)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2', 'stroke-dasharray': s.dash }, s2);
+    s.v.forEach((v, i) => {
+      el('circle', { cx: gx(i), cy: Y2(v), r: 5, style: s.hollow ? 'fill:var(--panel);stroke:var(--m-sr);stroke-width:2' : 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, s2);
+      hover(el('circle', { cx: gx(i), cy: Y2(v), r: 11, fill: 'transparent' }, s2), `<div class="t">${s.hollow ? 'First version' : 'Current version'} γ=${G[i]}</div>${row('Outliers', pct(v))}`);
+    });
+  });
+})();
+
+// ---------------------------------------------------------------- table 3: pollen
+(function () {
+  const P = D.summary.pollen;
+  document.getElementById('pollen-table').innerHTML = ['sr:1.0', 'v1:1.0', 'tsne', 'mds', 'umap', 'pca'].map(k =>
+    `<tr class="${k === 'sr:1.0' ? 'hl' : ''}"><td>${k === 'sr:1.0' ? 'Current version γ=1' : M[k].name}</td><td class="n">${fmt(P[k]['rnx@10'])}</td><td class="n">${fmt(P[k].dist_spearman)}</td><td class="n">${fmt(P[k].auc_rnx)}</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- canvas scatter
+const scatters = [];
+function scatter(container, title, coords, style, tipFn) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="mini-title">${title}</div>`;
+  const cv = document.createElement('canvas'); cv.className = 'scatter'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', title.replace(/<[^>]+>/g, ' '));
+  wrap.appendChild(cv); container.appendChild(wrap);
+  const S = { cv, coords, style, tipFn, scr: [] };
+  S.draw = () => {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (!r.width) return;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.width * dpr);
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.width);
+    const pad = 12, s = r.width - 2 * pad;
+    S.scr = coords.map(([x, y]) => [pad + x * s, pad + (1 - y) * s]);
+    const order = coords.map((_, i) => i).sort((a, b) => (style(a).z || 0) - (style(b).z || 0));
+    const size = Math.max(1.6, Math.min(3.2, r.width / 140));
+    const ink = css('--ink'), cache = {};
+    order.forEach(i => {
+      const st = style(i), [x, y] = S.scr[i], rr = size * (st.scale || 1);
+      ctx.globalAlpha = st.alpha ?? 0.85;
+      ctx.fillStyle = cache[st.color] || (cache[st.color] = css(st.color));
+      ctx.beginPath();
+      if (st.tri) { ctx.moveTo(x, y - rr * 1.25); ctx.lineTo(x + rr * 1.1, y + rr * 0.8); ctx.lineTo(x - rr * 1.1, y + rr * 0.8); ctx.closePath(); }
+      else ctx.arc(x, y, rr, 0, Math.PI * 2);
+      ctx.fill();
+      if (st.ring) { ctx.globalAlpha = 1; ctx.lineWidth = 1.4; ctx.strokeStyle = ink; ctx.beginPath(); ctx.arc(x, y, rr + 2.2, 0, Math.PI * 2); ctx.stroke(); }
+    });
+    ctx.globalAlpha = 1;
+  };
+  cv.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = -1, bd = 144;
+    S.scr.forEach(([x, y], i) => { const d = (x - mx) ** 2 + (y - my) ** 2; if (d < bd) { bd = d; best = i; } });
+    if (best >= 0) showTip(tipFn(best), e.clientX, e.clientY); else hideTip();
+  });
+  cv.addEventListener('pointerleave', hideTip);
+  scatters.push(S); return S;
+}
+const SLOT = i => `--c${(i % 8) + 1}`;
+
+// fig 19: digits
+(function () {
+  const E = D.emb.digits, lab = E.labels, box = document.getElementById('fig-digits');
+  [['mds', 'MDS'], ['tsne', 't-SNE'], ['v1:1.0', 'First version γ=1'], ['sr:1.0', 'Current version γ=1']].forEach(([k, name]) =>
+    scatter(box, name, E.emb[k], i => ({ color: SLOT(lab[i]), tri: lab[i] >= 8 }), i => `<div class="t">Digit ${lab[i]}</div>${name}`));
+  document.getElementById('fig-digits-legend').innerHTML = Array.from({ length: 10 }, (_, c) =>
+    `<span>${c >= 8 ? `<span style="color:var(${SLOT(c)});font-size:11px">▲</span>` : `<span class="sw dot" style="background:var(${SLOT(c)})"></span>`}${c}</span>`).join('');
+})();
+
+// fig 11: hier_blobs anti-hubs
+(function () {
+  const E = D.emb.hier_blobs, lab = E.labels, anti = E.antihub, box = document.getElementById('fig-hier');
+  let mode = 'anti';
+  const panels = [['v1:1.0', 'First version (hard 0.3)'], ['v1:nohard', 'First version, no hard'], ['sr:1.0', 'Current version (softmax)'], ['tsne', 't-SNE']];
+  const made = panels.map(([k, name]) => {
+    const out = E.outlier[k];
+    const nOut = out.reduce((a, b) => a + b, 0), nAntiOut = out.filter((o, i) => o && anti[i]).length;
+    return scatter(box, `${name}<div class="mini-sub">Outliers ${(nOut / out.length * 100).toFixed(1)}% (anti-hubs among them: ${nOut ? Math.round(nAntiOut / nOut * 100) : 0}%)</div>`, E.emb[k],
+      i => mode === 'anti'
+        ? (anti[i] ? { color: SLOT(lab[i]), ring: true, z: 2, alpha: 1 } : { color: SLOT(lab[i]), alpha: 0.35, z: 0 })
+        : { color: SLOT(lab[i]), alpha: 0.85 },
+      i => `<div class="t">Top-level cluster ${lab[i] + 1}</div>${anti[i] ? 'anti-hub (in 10-NN lists at most twice)' : 'Ordinary point'}${out[i] ? '<br>Outlier' : ''}`);
+  });
+  segmented(document.getElementById('hier-mode'), [['anti', 'Highlight anti-hubs'], ['plain', 'Colour only']], mode, v => { mode = v; made.forEach(s => s.draw()); });
+  document.getElementById('fig-hier-legend').innerHTML =
+    [0, 1, 2].map(c => `<span><span class="sw dot" style="background:var(${SLOT(c)})"></span>Top-level cluster ${c + 1}</span>`).join('') +
+    `<span><span class="sw ring" style="border-color:var(--ink)"></span>anti-hub</span>`;
+})();
+
+// ---------------------------------------------------------------- fig 20: tuned t-SNE / UMAP against ScaleRank
+const DIFF_KEYS = ['rnx@10', 'auc_rnx', 'dist_spearman', 'density_corr', 'knn_acc'];
+const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(3);
+(function () {
+  const grid = document.getElementById('fig-tuned');
+  const label = spec => {
+    const [m, p] = spec.split(':');
+    const s = p.replace('initialization=random', 'random initialisation').replace('init=random', 'random initialisation')
+      .replace(/,/g, ', ').replace(/=/g, ' ');
+    return (m === 'tsne' ? 't-SNE ' : 'UMAP ') + s;
+  };
+  ORDER.forEach(ds => {
+    const S = D.summary[ds], T = D.tuned[ds] || [];
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="mini-title">${DSN[ds]}</div>`;
+    const svg = el('svg', { class: 'chart', viewBox: '0 0 300 240', role: 'img', 'aria-label': `${DSN[ds]}: tuned t-SNE and UMAP versus ScaleRank` });
+    wrap.appendChild(svg); grid.appendChild(wrap);
+    const sr = SRK.filter(k => S[k]).map(k => [k, S[k].dist_spearman, S[k]['rnx@10']]);
+    const xs = [...T.map(t => t[1]), ...sr.map(p => p[1])], ys = [...T.map(t => t[2]), ...sr.map(p => p[2])];
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const px = (x1 - x0) * 0.12 || 0.05, py = (y1 - y0) * 0.14 || 0.05; x0 -= px; x1 += px; y0 -= py; y1 += py;
+    const m = { l: 38, r: 10, t: 8, b: 34 };
+    const X = lin(x0, x1, m.l, 300 - m.r), Y = lin(y0, y1, 240 - m.b, m.t);
+    niceTicks(x0, x1, 4).forEach(t => { el('line', { x1: X(t), x2: X(t), y1: m.t, y2: 240 - m.b, class: 'gridline' }, svg); txt(svg, X(t), 240 - m.b + 13, t.toFixed(1), { class: 'tick axis-label', 'text-anchor': 'middle', style: 'font-size:10px' }); });
+    niceTicks(y0, y1, 4).forEach(t => { el('line', { x1: m.l, x2: 300 - m.r, y1: Y(t), y2: Y(t), class: 'gridline' }, svg); txt(svg, m.l - 5, Y(t) + 3, t.toFixed(2), { class: 'tick axis-label', 'text-anchor': 'end', style: 'font-size:10px' }); });
+    txt(svg, (m.l + 300 - m.r) / 2, 236, 'Global: distance correlation →', { class: 'axis-title', 'text-anchor': 'middle', style: 'font-size:10.5px' });
+    txt(svg, 4, m.t + 2, 'Local ↑', { class: 'axis-title', style: 'font-size:10.5px', 'dominant-baseline': 'hanging' });
+    T.forEach(([spec, x, y]) => {
+      const c = spec.startsWith('tsne') ? 'var(--m-tsne)' : 'var(--m-umap)';
+      el('circle', { cx: X(x), cy: Y(y), r: 3.2, style: `fill:${c};opacity:0.8` }, svg);
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 8, fill: 'transparent' }, svg), `<div class="t">${label(spec)}</div>${row('Local R_NX@10', y.toFixed(3))}${row('Global distance correlation', x.toFixed(3))}`);
+    });
+    el('path', { d: sr.map(([, x, y], i) => `${i ? 'L' : 'M'}${X(x)},${Y(y)}`).join(''), fill: 'none', style: 'stroke:var(--m-sr);stroke-width:2' }, svg);
+    sr.forEach(([k, x, y]) => {
+      el('circle', { cx: X(x), cy: Y(y), r: 5, style: 'fill:var(--m-sr);stroke:var(--panel);stroke-width:2' }, svg);
+      txt(svg, X(x) + 7, Y(y) - 6, k.endsWith('1.0') ? 'γ=1' : k.endsWith('0.5') ? '0.5' : '0', { style: 'font-size:10px;fill:var(--ink-2);font-family:var(--f-mono)' });
+      hover(el('circle', { cx: X(x), cy: Y(y), r: 11, fill: 'transparent' }, svg), `<div class="t">${M[k].name}</div>${row('Local R_NX@10', y.toFixed(3))}${row('Global distance correlation', x.toFixed(3))}`);
+    });
+  });
+})();
+
+// ---------------------------------------------------------------- table 5: N²-free version against the original
+(function () {
+  document.getElementById('fast-table').innerHTML = ['1.0', '0.5', '0.0'].filter(g => D.fast[g]).map(g =>
+    `<tr><td>γ=${g.replace('.0', '')}</td>${DIFF_KEYS.map(k => `<td class="n">${signed(D.fast[g].diff[k])}</td>`).join('')}</tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 6 and fig 21: 70k points
+(function () {
+  const names = { tsne: 't-SNE', umap: 'UMAP', 'rs:1.0': 'ScaleRank γ=1', 'rs:1.0ns': 'ScaleRank γ=1 (neg_scale 0.5)', 'rs:0.0': 'ScaleRank γ=0' };
+  const draw = ds => {
+    const S = D.big.summary[ds];
+    document.getElementById('big-table').innerHTML = Object.keys(names).filter(k => S[k]).map(k =>
+      `<tr class="${k === 'rs:1.0' ? 'hl' : ''}"><td>${names[k]}</td>${DIFF_KEYS.map(m => `<td class="n">${fmt(S[k][m])}</td>`).join('')}<td class="n">${fmt(S[k].time_s, 0)} s</td></tr>`).join('');
+  };
+  segmented(document.getElementById('big-ds'), [['mnist70k', 'MNIST'], ['fmnist70k', 'Fashion-MNIST']], 'mnist70k', draw);
+  draw('mnist70k');
+  const E = D.big.emb, lab = E.labels, box = document.getElementById('fig-big');
+  [['tsne', 't-SNE'], ['umap', 'UMAP'], ['rs:1.0ns', 'ScaleRank γ=1 (neg_scale 0.5)'], ['rs:0.0', 'ScaleRank γ=0']].filter(([k]) => E.emb[k]).forEach(([k, name]) =>
+    scatter(box, name, E.emb[k], i => ({ color: SLOT(lab[i]), tri: lab[i] >= 8, alpha: 0.7 }), i => `<div class="t">Digit ${lab[i]}</div>${name}`));
+  document.getElementById('fig-big-legend').innerHTML = Array.from({ length: 10 }, (_, c) =>
+    `<span>${c >= 8 ? `<span style="color:var(${SLOT(c)});font-size:11px">▲</span>` : `<span class="sw dot" style="background:var(${SLOT(c)})"></span>`}${c}</span>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 7: Rust ports against their references
+(function () {
+  const names = { tsne_rs: 't-SNE', umap_rs: 'UMAP', 'scalerank_rs:gamma=1.0': 'ScaleRank γ=1' };
+  const refs = { tsne: 'openTSNE', 'umap:init=pca': 'umap-learn (PCA initialisation)', 'scalerank_fast:gamma=1.0': 'Python version' };
+  document.getElementById('ports-table').innerHTML = D.ports.map(p =>
+    `<tr><td>${names[p.rust]}</td><td>${refs[p.ref]}</td>${DIFF_KEYS.map(k => `<td class="n">${signed(p.diff[k])}</td>`).join('')}<td class="n">${p.time[0].toFixed(2)} / ${p.time[1].toFixed(2)} s</td></tr>`).join('');
+})();
+
+// ---------------------------------------------------------------- table 8: stability against the seed and the row order
+(function () {
+  const S = D.stability;
+  if (!S) return;
+  const rows = [
+    ['pca', 'PCA', 'pca'], ['mds', 'MDS', null],
+    ['tsne', 't-SNE', 'tsne'], ['tsne:initialization=random', 't-SNE (' + 'random initialisation' + ')', null],
+    ['umap', 'UMAP (' + 'spectral initialisation' + ')', 'umap'], ['umap:init=pca', 'UMAP (' + 'PCA initialisation' + ')', 'umap:init=pca'], ['umap:init=random', 'UMAP (' + 'random initialisation' + ')', null],
+    ['densmap', 'densMAP', null], ['pacmap', 'PaCMAP', null], ['trimap', 'TriMap', null],
+    ['scalerank:gamma=1.0', 'ScaleRank γ=1', 'scalerank_rs:gamma=1.0'], ['scalerank:gamma=0.5', 'ScaleRank γ=0.5', null], ['scalerank:gamma=0.0', 'ScaleRank γ=0', 'scalerank_rs:gamma=0.0'],
+  ];
+  const cell = (m, exp, k) => { const v = S.methods[m] && S.methods[m][exp]; return `<td class="n">${v ? fmt(v[k]) : '–'}</td>`; };
+  document.getElementById('stability-table').innerHTML = rows.filter(([k]) => S.methods[k]).map(([k, name, ko]) =>
+    `<tr class="${k === 'scalerank:gamma=1.0' ? 'hl' : ''}"><td>${name}</td>${cell(k, 'seed', 'dist')}${ko ? cell(ko, 'order', 'dist') : '<td class="n">–</td>'}${cell(k, 'seed', 'knn')}${ko ? cell(ko, 'order', 'knn') : '<td class="n">–</td>'}</tr>`).join('');
+  document.querySelectorAll('.js-rho').forEach(e => { const v = S.rho[e.dataset.m]; e.textContent = v == null ? '–' : v.toFixed(2); });
+})();
+
+// ---------------------------------------------------------------- redraw canvases on resize / theme change
+const redraw = () => scatters.forEach(s => s.draw());
+redraw();
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(redraw, 120); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (document.fonts) document.fonts.ready.then(redraw);
+})();
+</script>

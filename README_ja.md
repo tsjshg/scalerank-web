@@ -54,16 +54,17 @@ Time 以外はすべて大きいほど良い。ただし局所の近傍と大域
 | パス | 内容 |
 |---|---|
 | `crates/scalerank-core` | 本体（Rust、依存は任意の rayon のみ）。kNN（総当たり、NN-descent）、PCA、N² を使わない順位テーブル、ScaleRank、UMAP、t-SNE（Barnes-Hut）、評価指標 |
-| `crates/scalerank-py` | 検証用の Python バインディング（PyO3）。[drbench](https://github.com/tsjshg/madr) で Python の試作、umap-learn、openTSNE と比べる |
+| `crates/scalerank-py` | 検証用の Python バインディング（PyO3）。[drbench](https://github.com/tsjshg/drbench) で Python の試作、umap-learn、openTSNE と比べる |
 | `crates/scalerank-wasm` | ブラウザ用の WASM バインディング（wasm-bindgen、単一スレッド、SIMD128） |
 | `web` | Web UI（Vite + TypeScript）。計算は Web Worker、描画は WebGL2 |
+| `research` | ScaleRank の Python 版、実験用スクリプト、研究ノートの元ファイル。drbench のプラグインとして使う（[research/README.md](research/README.md)） |
 
 ## 開発
 
 ```bash
 cargo test -p scalerank-core
 # drbench の環境に Python バインディングを入れる
-uv pip install --python ../madr/drbench/.venv/bin/python ./crates/scalerank-py
+uv pip install --python <drbench のパス>/.venv/bin/python ./crates/scalerank-py
 
 # Web UI（wasm32-unknown-unknown ターゲットと wasm-bindgen-cli 0.2.129 が必要）
 cd web
@@ -73,4 +74,4 @@ npm run dev    # http://localhost:5173
 ```
 
 `main` に push するたびにアプリがビルドされ、GitHub Pages に公開される（`.github/workflows/pages.yml`）。
-`web/public/docs` の研究ノートは drbench の結果を使うので、[drbench](https://github.com/tsjshg/madr) 側で `scripts/build_overview.py --publish <web/public/docs のパス>` を実行して生成する。
+`web/public/docs` の研究ノートは drbench の結果を使うので、手元で `research/scripts/build_overview.py` を実行して生成し、コミットする（[research/README.md](research/README.md)）。

@@ -1,0 +1,25 @@
+[project]
+name = "scalerank-research"
+version = "0.1.0"
+description = "ScaleRank's Python prototypes and research scripts, as drbench methods"
+readme = "README.md"
+requires-python = ">=3.12"
+# drbench is expected in the same environment (install this package into drbench's)
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+]
+
+[project.optional-dependencies]
+# the Rust ports (scalerank_rs, tsne_rs, umap_rs): build ../crates/scalerank-py into the same environment
+rust = ["scalerank-rs"]
+
+[project.entry-points."drbench.methods"]
+scalerank = "scalerank_research.methods"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
