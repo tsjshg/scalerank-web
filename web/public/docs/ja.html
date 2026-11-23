@@ -16,6 +16,7 @@
   --ink-2: #464d5a;
   --muted: #747b88;
   --rule: #dcdfe5;
+  --plot-edge: #c5cad3;
   --grid: #e7e9ee;
   --accent: #c2302f;          /* ScaleRank, the protagonist: text-safe red */
   --accent-soft: #fbe9e8;
@@ -34,7 +35,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
-    --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+    --rule: #2c313a; --plot-edge: #535b68; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
     --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
     --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
@@ -44,7 +45,7 @@
 }
 :root[data-theme="dark"] {
   --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
-  --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+  --rule: #2c313a; --plot-edge: #535b68; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
   --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
   --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
@@ -175,7 +176,7 @@ tr.hl td { background: var(--accent-soft); }
 pre { background: var(--code-bg); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0.5rem 0; }
 pre code { background: none; padding: 0; }
 
-canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; touch-action: none; }
+canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--plot-edge); border-radius: 8px; touch-action: none; }
 
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.65rem; font-size: 0.8rem; line-height: 1.55; box-shadow: 0 6px 20px rgba(0,0,0,0.12); max-width: 18rem; }
 .tip .row { display: flex; justify-content: space-between; gap: 0.8rem; align-items: center; }
@@ -704,11 +705,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <div class="controls"><span class="fig-sub">データ:</span><div class="seg" id="seedcmp-ds" role="group" aria-label="データの切り替え"></div></div>
       <div id="fig-seedcmp"></div>
       <div class="legend" id="fig-seedcmp-legend"></div>
-      <figcaption><b>図22.</b> 同じデータを seed だけ変えて 3 回描いた地図（上段 UMAP、下段 ScaleRank γ=1、Rust 版）。向きの違いで見誤らないよう、seed 1・2 は seed 0 に回転と鏡映で合わせてある。hier_blobs は 3 つの大クラスタ × 4 つの小クラスタの人工データで、色は大クラスタ。Kolodziejczyk はマウス ES 細胞 704 個、色は 3 つの培養条件。</figcaption>
+      <figcaption><b>図21.</b> 同じデータを seed だけ変えて 3 回描いた地図（上段 UMAP、下段 ScaleRank γ=1、Rust 版）。向きの違いで見誤らないよう、seed 1・2 は seed 0 に回転と鏡映で合わせてある。hier_blobs は 3 つの大クラスタ × 4 つの小クラスタの人工データで、色は大クラスタ。Kolodziejczyk はマウス ES 細胞 704 個、色は 3 つの培養条件。</figcaption>
     </figure>
   </div>
   <div class="col">
-    <p>UMAP の地図でクラスタどうしの位置関係を読むと、seed しだいで違う結論になります（図22）。hier_blobs の UMAP では、同じ大クラスタの小クラスタが地図のあちこちに散り、どれとどれが隣り合うかも seed ごとに変わります。ScaleRank では同じ色が 3 回ともまとまり、配置も変わりません。実データの Kolodziejczyk でも同じ傾向ですが、差は小さくなります。表8 は、これを 8 データで数えたものです。</p>
+    <p>UMAP の地図でクラスタどうしの位置関係を読むと、seed しだいで違う結論になります（図21）。hier_blobs の UMAP では、同じ大クラスタの小クラスタが地図のあちこちに散り、どれとどれが隣り合うかも seed ごとに変わります。ScaleRank では同じ色が 3 回ともまとまり、配置も変わりません。実データの Kolodziejczyk でも同じ傾向ですが、差は小さくなります。表8 は、これを 8 データで数えたものです。</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -788,7 +789,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     </figure>
   </div>
   <div class="col">
-    <p>MNIST と Fashion-MNIST の全 7 万点（PCA で 50 次元）で試した結果が表6と図21です。</p>
+    <p>MNIST と Fashion-MNIST の全 7 万点（PCA で 50 次元）で試した結果が表6と図22です。</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -806,7 +807,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <figure class="panel">
       <div class="grid-4" id="fig-big"></div>
       <div class="legend" id="fig-big-legend"></div>
-      <figcaption><b>図21.</b> MNIST 7 万点のうちランダムな 5000 点。色は数字のクラスで、8 と 9 は三角形。</figcaption>
+      <figcaption><b>図22.</b> MNIST 7 万点のうちランダムな 5000 点。色は数字のクラスで、8 と 9 は三角形。</figcaption>
     </figure>
   </div>
   <div class="col">
@@ -814,7 +815,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li>大域（距離相関）は、ScaleRank が t-SNE や UMAP よりはっきり高くなりました。</li>
       <li>一方、局所（R<sub>NX</sub>@10）は N が大きくなると弱くなります。MNIST の γ=1 では 1 万点で 0.27 だったのが 7 万点で 0.10 になり、t-SNE（0.39）の約 4 分の 1、UMAP と同じくらいです。</li>
     </ul>
-    <p>図21 では、ScaleRank γ=1（neg_scale 0.5）は数字ごとのまとまりを保つものの、各クラスが小さな塊に分かれ、周りに散らばる点も多くなっています。γ=0 は全体の配置を保つ代わりに、クラスが重なります。</p>
+    <p>図22 では、ScaleRank γ=1（neg_scale 0.5）は数字ごとのまとまりを保つものの、各クラスが小さな塊に分かれ、周りに散らばる点も多くなっています。γ=0 は全体の配置を保つ代わりに、クラスが重なります。</p>
     <h3>局所が N とともに弱くなる理由</h3>
     <p>負例の数 Q を固定したまま N を大きくすると、Q 個の負例が代表する「それ以外のすべての点」が増え、反発が相対的に弱まります。対比学習で知られている性質で（Damrich ら 2023）、負例を少なく引く UMAP に近い振る舞いになります。</p>
     <p>そこで、負例の項に重み w = ((N−1−K)/Q)<sup>a</sup> をかける設定（neg_scale = a）を入れました。a = 0.5 で局所はほぼ 2 倍（MNIST 0.10 → 0.20、Fashion-MNIST 0.12 → 0.20）になりますが、t-SNE にはまだ届きません。小さいデータでは密度相関が下がる（digits で 0.66 → 0.48）ので、既定値にはしていません。</p>
@@ -1742,7 +1743,7 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
     `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
 })();
 
-// fig 22: the same data, three seeds, UMAP against ScaleRank
+// fig 21: the same data, three seeds, UMAP against ScaleRank
 (function () {
   const C = D.seedcmp;
   if (!C) return;

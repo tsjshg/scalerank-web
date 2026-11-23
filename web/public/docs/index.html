@@ -16,6 +16,7 @@
   --ink-2: #464d5a;
   --muted: #747b88;
   --rule: #dcdfe5;
+  --plot-edge: #c5cad3;
   --grid: #e7e9ee;
   --accent: #c2302f;          /* ScaleRank, the protagonist: text-safe red */
   --accent-soft: #fbe9e8;
@@ -34,7 +35,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
-    --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+    --rule: #2c313a; --plot-edge: #535b68; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
     --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
     --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
@@ -44,7 +45,7 @@
 }
 :root[data-theme="dark"] {
   --paper: #111317; --panel: #191c22; --ink: #eceef2; --ink-2: #bcc2cc; --muted: #8b93a1;
-  --rule: #2c313a; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
+  --rule: #2c313a; --plot-edge: #535b68; --grid: #252a32; --accent: #f07170; --accent-soft: #3a1f21; --seq: #1c5cab; --code-bg: #20242b;
   --m-pca: #3987e5; --m-tsne: #d95926; --m-umap: #199e70; --m-densmap: #c98500;
   --m-pacmap: #d55181; --m-mds: #008300; --m-trimap: #9085e9; --m-sr: #e66767; --m-random: #6f6e6a;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
@@ -175,7 +176,7 @@ tr.hl td { background: var(--accent-soft); }
 pre { background: var(--code-bg); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.84rem; line-height: 1.6; margin: 0.5rem 0; }
 pre code { background: none; padding: 0; }
 
-canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; touch-action: none; }
+canvas.scatter { width: 100%; aspect-ratio: 1 / 1; max-width: 100%; display: block; background: var(--panel); border: 1px solid var(--plot-edge); border-radius: 8px; touch-action: none; }
 
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 0.45rem 0.65rem; font-size: 0.8rem; line-height: 1.55; box-shadow: 0 6px 20px rgba(0,0,0,0.12); max-width: 18rem; }
 .tip .row { display: flex; justify-content: space-between; gap: 0.8rem; align-items: center; }
@@ -704,11 +705,11 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <div class="controls"><span class="fig-sub">Data:</span><div class="seg" id="seedcmp-ds" role="group" aria-label="Switch the dataset"></div></div>
       <div id="fig-seedcmp"></div>
       <div class="legend" id="fig-seedcmp-legend"></div>
-      <figcaption><b>Figure 22.</b> The same data drawn three times, changing only the seed (top: UMAP; bottom: ScaleRank γ=1, Rust version). Seeds 1 and 2 are rotated and reflected onto seed 0, so orientation does not mislead. hier_blobs is synthetic, with 3 large clusters × 4 small clusters; colour is the large cluster. Kolodziejczyk is 704 mouse ES cells; colour is one of 3 culture conditions.</figcaption>
+      <figcaption><b>Figure 21.</b> The same data drawn three times, changing only the seed (top: UMAP; bottom: ScaleRank γ=1, Rust version). Seeds 1 and 2 are rotated and reflected onto seed 0, so orientation does not mislead. hier_blobs is synthetic, with 3 large clusters × 4 small clusters; colour is the large cluster. Kolodziejczyk is 704 mouse ES cells; colour is one of 3 culture conditions.</figcaption>
     </figure>
   </div>
   <div class="col">
-    <p>Reading how clusters sit relative to each other in a UMAP map gives different answers for different seeds (Figure 22). In the UMAP maps of hier_blobs, the small clusters of one large cluster are scattered across the map, and which ones sit next to each other changes with the seed. In ScaleRank's maps the colours stay together and the layout stays put in all three runs. The real Kolodziejczyk data show the same tendency, with a smaller difference. Table 8 counts this over the 8 datasets.</p>
+    <p>Reading how clusters sit relative to each other in a UMAP map gives different answers for different seeds (Figure 21). In the UMAP maps of hier_blobs, the small clusters of one large cluster are scattered across the map, and which ones sit next to each other changes with the seed. In ScaleRank's maps the colours stay together and the layout stays put in all three runs. The real Kolodziejczyk data show the same tendency, with a smaller difference. Table 8 counts this over the 8 datasets.</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -788,7 +789,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     </figure>
   </div>
   <div class="col">
-    <p>Table 6 and Figure 21 show the results on all 70,000 points of MNIST and Fashion-MNIST (reduced to 50 dimensions with PCA).</p>
+    <p>Table 6 and Figure 22 show the results on all 70,000 points of MNIST and Fashion-MNIST (reduced to 50 dimensions with PCA).</p>
   </div>
   <div class="wide">
     <figure class="panel">
@@ -806,7 +807,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <figure class="panel">
       <div class="grid-4" id="fig-big"></div>
       <div class="legend" id="fig-big-legend"></div>
-      <figcaption><b>Figure 21.</b> A random 5,000 of the 70,000 MNIST points. Colour shows the digit class; 8 and 9 are triangles.</figcaption>
+      <figcaption><b>Figure 22.</b> A random 5,000 of the 70,000 MNIST points. Colour shows the digit class; 8 and 9 are triangles.</figcaption>
     </figure>
   </div>
   <div class="col">
@@ -814,7 +815,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
       <li>Globally (distance correlation), ScaleRank is clearly higher than t-SNE and UMAP.</li>
       <li>Locally (R<sub>NX</sub>@10), on the other hand, it weakens as N grows. On MNIST at γ=1, it was 0.27 at 10,000 points but 0.10 at 70,000 points: about a quarter of t-SNE (0.39) and about the same as UMAP.</li>
     </ul>
-    <p>In Figure 21, ScaleRank γ=1 (neg_scale 0.5) keeps the digits apart, but each class breaks into small clumps, with many scattered points around them. γ=0 keeps the overall arrangement but lets the classes overlap.</p>
+    <p>In Figure 22, ScaleRank γ=1 (neg_scale 0.5) keeps the digits apart, but each class breaks into small clumps, with many scattered points around them. γ=0 keeps the overall arrangement but lets the classes overlap.</p>
     <h3>Why local weakens as N grows</h3>
     <p>If the number of negatives Q stays fixed while N grows, the Q negatives stand in for an ever larger set of "all other points", and the repulsion becomes relatively weaker. This is a known property in contrastive learning (Damrich et al. 2023), and the behaviour approaches that of UMAP, which draws few negatives.</p>
     <p>So I added a setting that multiplies the negative terms by a weight w = ((N−1−K)/Q)<sup>a</sup> (neg_scale = a). With a = 0.5, local roughly doubles (MNIST 0.10 → 0.20, Fashion-MNIST 0.12 → 0.20), but it still falls short of t-SNE. On small datasets the density correlation drops (0.66 → 0.48 on digits), so it is not the default.</p>
@@ -1771,7 +1772,7 @@ const signed = v => v == null ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Mat
     `<tr class="${k === 'rs:1.0o4' ? 'hl' : ''}"><td>${name}</td>${keys.map(m => `<td class="n">${fmt(E[k][m])}</td>`).join('')}<td class="n">${fmt(E[k].stab_knn)}</td><td class="n">${fmt(E[k].stab_dist)}</td></tr>`).join('');
 })();
 
-// fig 22: the same data, three seeds, UMAP against ScaleRank
+// fig 21: the same data, three seeds, UMAP against ScaleRank
 (function () {
   const C = D.seedcmp;
   if (!C) return;
