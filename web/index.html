@@ -10,7 +10,7 @@
   <body>
     <header class="top">
       <h1>ScaleRank</h1>
-      <p class="tagline">Maps of tabular data, computed in your browser. Your data never leaves this page.</p>
+      <p class="tagline">Maps you can read at every scale: within groups and between them. Computed in your browser; your data never leaves this page.</p>
       <button type="button" class="help-button" id="help-open">Help</button>
     </header>
     <dialog id="help" class="help" aria-labelledby="help-title">
@@ -21,7 +21,8 @@
       <div class="help-body">
         <p>ScaleRank turns a table (rows are items, numeric columns are features) into a 2-D map in which items that are similar in the data sit close together.</p>
         <p>No 2-D map can keep every distance of many-dimensional data, so every method chooses what to keep. t-SNE and UMAP keep each point's closest neighbours but tend to lose how the groups are arranged relative to each other. PCA and MDS keep the large-scale layout but blur local detail.</p>
-        <p>ScaleRank makes this choice a setting. It works with neighbour <em>ranks</em>: for each point, which points are its 1st, 2nd, …, K-th nearest. During the optimisation it repeatedly takes a point, a neighbourhood size K, one point inside that neighbourhood and several outside it. Then it moves the map so the inside point ends up closer than the outside ones.</p>
+        <p><strong>ScaleRank keeps both</strong>, as far as a 2-D map allows: you can read the neighbourhoods inside each group and how the groups sit relative to each other. On the 8 datasets of its benchmark, no other method was better on both local and global quality, including t-SNE and UMAP tuned over 30 settings, and its global layout barely changes with the random seed.</p>
+        <p>It also makes the balance a setting. It works with neighbour <em>ranks</em>: for each point, which points are its 1st, 2nd, …, K-th nearest. During the optimisation it repeatedly takes a point, a neighbourhood size K, one point inside that neighbourhood and several outside it. Then it moves the map so the inside point ends up closer than the outside ones.</p>
         <p>The <strong>Scale</strong> slider (γ) controls how often each K is drawn, with probability proportional to K<sup>−γ</sup>:</p>
         <ul>
           <li><strong>γ = 0</strong> weights all neighbourhood sizes equally, which favours the global layout.</li>
@@ -57,7 +58,7 @@
         <p>Everything runs in your browser through WebAssembly. Your file is read locally and is never uploaded.</p>
         <h3>More</h3>
         <p>How the method came about, the benchmark behind it and the main experiments so far: <a href="docs/" target="_blank" rel="noopener">research notes</a> (<a href="docs/ja.html" target="_blank" rel="noopener" hreflang="ja" lang="ja">日本語</a>).</p>
-        <p class="hint">Source code: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a></p>
+        <p class="hint">Source code: <a href="https://github.com/tsjshg/scalerank-web" target="_blank" rel="noopener">github.com/tsjshg/scalerank-web</a> (app), <a href="https://github.com/tsjshg/scalerank" target="_blank" rel="noopener">github.com/tsjshg/scalerank</a> (method, Python package <code>pip install scalerank</code>)</p>
       </div>
     </dialog>
     <main class="layout">

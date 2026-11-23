@@ -7,9 +7,13 @@
 Research notes on how the method came about, with the benchmark and the main experiments so far:
 <https://tsjshg.github.io/scalerank-web/docs/> ([日本語](https://tsjshg.github.io/scalerank-web/docs/ja.html))
 
+**Maps you can read at every scale: the neighbourhoods inside each group,
+and how the groups sit relative to each other.**
+
 A dimensionality-reduction tool for tabular data that runs entirely in the
 browser. Files are read locally and nothing is uploaded. It is in development;
-the goal is 100,000 points.
+the goal is 100,000 points. The method itself, its Python package and the
+benchmarks are in [tsjshg/scalerank](https://github.com/tsjshg/scalerank).
 
 ## What ScaleRank does
 
@@ -21,7 +25,13 @@ chooses what to keep. t-SNE and UMAP keep each point's closest neighbours but
 tend to lose how the groups are arranged relative to each other. PCA and MDS
 keep the large-scale layout but blur local detail.
 
-ScaleRank makes this choice a setting. It works with neighbour *ranks*: for
+ScaleRank keeps both, as far as a 2-D map allows. On the 8 datasets of
+[drbench](https://github.com/tsjshg/drbench), no other method was better on
+both local and global quality, including t-SNE and UMAP tuned over 30 settings.
+Its global layout (distance correlation 0.79, against 0.52 for t-SNE and 0.37
+for UMAP) barely changes with the random seed.
+
+It also makes the balance a setting. It works with neighbour *ranks*: for
 each point, which points are its 1st, 2nd, …, K-th nearest. During the
 optimisation it repeatedly takes a point, a neighbourhood size K, one point
 inside that neighbourhood and several outside it. Then it moves the map so the

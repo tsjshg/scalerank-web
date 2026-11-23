@@ -196,7 +196,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <div class="col">
     <div class="eyebrow">研究ノート · 次元削減</div>
     <h1>MADR から <span class="to">ScaleRank</span> へ</h1>
-    <p class="lede">2020年に始めたマルチエージェント型の次元削減（MADR）を見直し、比較の物差しを作り直したうえで、「守るスケールを指定できる順位保存」という新しい手法 ScaleRank を試作しました。最初の版で見つかった外れ点の問題を調べて損失関数をソフトマックス型に作り直し、N² を使わない版で 7 万点まで広げ、Rust と WebAssembly でブラウザアプリにするまでの経緯と結果を、図で説明します。</p>
+    <p class="lede">2020年に始めたマルチエージェント型の次元削減（MADR）を見直し、比較の物差しを作り直したうえで、「守るスケールを指定できる順位保存」という新しい手法 ScaleRank を試作しました。最初の版で見つかった外れ点の問題を調べて損失関数をソフトマックス型に作り直し、N² を使わない版で 7 万点まで広げ、Rust と WebAssembly でブラウザアプリにするまでの経緯と結果を、図で説明します。一言でいえば、ScaleRank が目指したのは<strong>クラスタの中も、クラスタどうしの関係も読める地図</strong>です。</p>
     <div class="meta">
       <span>2026年11月23日時点</span>
       <span>研究コード: <a href="https://github.com/tsjshg/scalerank/tree/main/research" target="_blank" rel="noopener">scalerank/research</a></span>
@@ -213,7 +213,7 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
     <div class="summary">
       <div><div class="k">何をしたか</div><p>過去の試みを読み直し、8データ × 8手法を同じ指標で比べるベンチマーク基盤 <b>drbench</b> を作った。新手法を試作し、7 万点まで動く版とブラウザアプリにした。</p></div>
       <div><div class="k">何が分かったか</div><p>既存手法には「局所に強い」か「大域に強い」かのトレードオフがあり、全スケールで勝つ手法はない。</p></div>
-      <div><div class="k">新手法</div><p><span class="sr">ScaleRank</span> は守りたいスケールを γ で指定する。現行のソフトマックス型（γ=1）は、8データすべてで局所と大域の両方で既存手法に負けない点を作った。パラメータを調整した t-SNE・UMAP（30 設定）も、両方で上回ることはなかった。密度項を足すと、単一細胞の外部ベンチマーク Open Problems で densMAP を上回った（総合 0.491 対 0.452）。</p></div>
+      <div><div class="k">新手法</div><p><span class="sr">ScaleRank</span> は、クラスタの中もクラスタどうしの関係も読める地図を作る。t-SNE や UMAP の地図ではクラスタ間の距離や並び方を読めないが、ScaleRank では読める（距離相関 0.80、t-SNE 0.52、UMAP 0.37）。守りたいスケールは γ で指定する。現行のソフトマックス型（γ=1）は、8データすべてで局所と大域の両方で既存手法に負けない点を作った。パラメータを調整した t-SNE・UMAP（30 設定）も、両方で上回ることはなかった。密度項を足すと、単一細胞の外部ベンチマーク Open Problems で densMAP を上回った（総合 0.491 対 0.452）。</p></div>
       <div><div class="k">残る課題</div><p>局所だけなら t-SNE がまだ上で、7 万点ではその差が広がる。外れ点が多い。個々の要素の多くは先行研究にあり、多重スケール t-SNE や DREAMS との比較が必要。</p></div>
     </div>
     <nav class="toc" aria-label="目次" style="margin-top:1.6rem">
