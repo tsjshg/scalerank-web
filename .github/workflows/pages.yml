@@ -32,8 +32,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Test the core
-        run: cargo test -p scalerank-core
       - name: Build
         working-directory: web
         run: |

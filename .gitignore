@@ -1,8 +1,4 @@
 /target
-__pycache__/
-*.so
-*.pyd
-.venv/
 dist/
 /web/node_modules
 /web/dist

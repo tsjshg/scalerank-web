@@ -4,13 +4,13 @@
 //! returning false stops the run early.
 
 use js_sys::{Float32Array, Function, Object, Reflect};
-use scalerank_core::eval;
-use scalerank_core::knn::{Knn, knn_exact};
-use scalerank_core::prep::prepare;
-use scalerank_core::scalerank::{self, Params};
-use scalerank_core::tsne::{self, TsneParams};
-use scalerank_core::umap::{self, UmapParams};
-use scalerank_core::{Points, Progress};
+use scalerank::eval;
+use scalerank::knn::{Knn, knn_exact};
+use scalerank::prep::prepare;
+use scalerank::scalerank::{Params, fit_with_knn};
+use scalerank_baselines::tsne::{self, TsneParams};
+use scalerank_baselines::umap::{self, UmapParams};
+use scalerank::{Points, Progress};
 use wasm_bindgen::prelude::*;
 
 /// Neighbours kept for all methods: ScaleRank's kmax (100) covers t-SNE's
@@ -97,7 +97,7 @@ impl Session {
     pub fn scalerank(&mut self, gamma: f64, n_epochs: usize, neg_scale: f64, seed: u32, every: usize, cb: &Function) -> Vec<f32> {
         self.compute_knn();
         let params = Params { gamma, n_epochs, neg_scale, seed: seed as u64, kmax: K_SHARED.min(self.n - 2), ..Params::default() };
-        let fit = scalerank::fit_with_knn(&self.points(), self.knn.as_ref().unwrap(), &params, reporter(cb, every));
+        let fit = fit_with_knn(&self.points(), self.knn.as_ref().unwrap(), &params, reporter(cb, every));
         fit.embedding.iter().map(|&v| v as f32).collect()
     }
 
